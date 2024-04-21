@@ -2,7 +2,7 @@
   
 ## Description  
   
-Our groups repository for Stanford's CS227B General Game playing class. We create general game playing bots to play a variety of games utilizing different strategies.
+The repository for Stanford's CS227B General Game Playing class team ur_moms_a_bit. The bot is able to play a variety of games utilizing different strategies.
   
 ## Getting Started  
   
