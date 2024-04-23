@@ -80,7 +80,7 @@
     var terminals = 0;
     var elapsed = 0;
 
-    function playminimax (role) {
+    function playminimax(role) {
         var actions = shuffle(findlegals(state,library));
         if (actions.length===0) {
             return false;
@@ -109,7 +109,7 @@
         return action;
     }
 
-    function testminimax (role,state, alpha, beta) {
+    function testminimax (role, state, alpha, beta) {
         nodes = 0;
         terminals = 0;
         var beg = performance.now();
@@ -120,7 +120,7 @@
         return result;
     }
 
-    function minimax (role,state, alpha, beta) {
+    function minimax (role, state, alpha, beta) {
         nodes = nodes + 1;
         // use role + state for memo key
         var stateKey = role + JSON.stringify(state);
@@ -144,7 +144,7 @@
         return minScore;
     }
 
-    function maximize (active,role,state, alpha, beta) {
+    function maximize(active, role, state, alpha, beta) {
         var actions = findlegals(state,library);
         if (actions.length===0) {
             return 0;
@@ -157,15 +157,15 @@
             if (score===100) {
                 return 100;
             }
-            alpha = Math.max(alpha, score);  
-            if (beta <= alpha) {  
+            alpha = Math.max(alpha, score);
+            if (beta <= alpha) {
                 break;
             }
         }
         return score;
     }
 
-    function minimize (active,role,state, alpha, beta) {
+    function minimize(active, role, state, alpha, beta) {
         var actions = findlegals(state,library);
         if (actions.length===0) {
             return 0;
@@ -174,12 +174,12 @@
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i],state,library);
             var newscore = minimax(role,newstate, alpha, beta);
-            score = Math.min(score, newscore);  
+            score = Math.min(score, newscore);
             if (score===0) {
                 return 0;
             }
-            beta = Math.min(beta, score);  
-            if (beta <= alpha) {  
+            beta = Math.min(beta, score);
+            if (beta <= alpha) {
                 break;
             }
         }
