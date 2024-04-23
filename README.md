@@ -20,6 +20,15 @@ Replace `<feature-name>`, `<bug-name>`, and `<document-name>` with a brief descr
   
 Please use hyphens to separate words in the branch name, and keep everything lowercase.  
   
+## Players Implemented
+# Random
+The random player performs a random legal move.
+
+# Legal
+The legal player performs the first legal move found.
+
+# Single Player Minimax
+
 ## Authors  
   
 Project contributors include Rishi Alluri, Campbell Hoskins, and Alan De Loera
