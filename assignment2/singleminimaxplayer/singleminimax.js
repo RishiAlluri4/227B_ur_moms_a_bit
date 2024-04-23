@@ -1,103 +1,121 @@
-//==============================================================================
-// singleminimax.js
-//==============================================================================
+    //==============================================================================
+    // Customization
+    //==============================================================================
 
-var role, roles, state, library, startclock, playclock;
+    var manager = 'manager';
+    var player = 'ur_moms_a_bit';
 
-function ping ()
- {return 'ready'}
+    //==============================================================================
+    // singleminimax.js
+    //==============================================================================
 
-function start (r,rs,sc,pc)
- {role = r;
- library = rs; // definerules([],rs.slice(1));
- roles = findroles(library);
- state = findinits(library);
- startclock = numberize(sc);
- playclock = numberize(pc);
- return 'ready'}
+    var role = 'robot';
+    var rules = [];
+    var startclock = 10;
+    var playclock = 10;
 
-function play (move)
- {if (move!==nil) {state = simulate(move,state,library)};
- if (findcontrol(state,library)!==role) {return false};
- return bestmove(state)}
+    var library = [];
+    var roles = [];
+    var state = [];
 
-function stop (move)
- {return false}
+    //==============================================================================
 
-function abort ()
- {return false}
+    function ping ()
+    {return 'ready'}
 
-/* bestmove function takes looks through all possible actions that can be taken from
-   from the current state and returns the actions which has the maximum possible value 
-   that can be found using minimax */
+    function start (r,rs,sc,pc)
+    {role = r;
+    rules = rs.slice(1);
+    startclock = numberize(sc);
+    playclock = numberize(pc);
+    library = definemorerules([],rs.slice(1));
+    roles = findroles(library);
+    state = findinits(library);
+    return 'ready'}
 
-function bestmove (state) {
-    var actions = findlegals(role,state,ruleset);
+    function play (move)
+    {if (move!==nil) {state = simulate(move,state,library)};
+    if (findcontrol(state,library)!==role) {return false};
+    return playminimax(role)}
+
+    function stop (move)
+    {return false}
+
+    function abort ()
+    {return false}
+
+    //==============================================================================
+    // minimax
+    //==============================================================================
+
+    var nodes = 0;
+    var terminals = 0;
+    var elapsed = 0;
+
+    function playminimax (role)
+    {var actions = shuffle(findlegals(state,library));
+    if (actions.length===0) {return false};
+    if (actions.length===1) {return actions[0]};
     var action = actions[0];
     var score = 0;
-    for (var i=0; i<actions.length; i++) {
+    nodes = 0
+    for (var i=0; i<actions.length; i++)
+        {//console.log(grind(actions[i]));
         var newstate = simulate(actions[i],state,library);
-        var newscore = minimax(newstate);
-        if (newscore>score) {
-            score = newscore; 
-            action = actions[i]
-        }    
-    }
-    return action;
-}
+        var newscore = minimax(role,newstate);
+        //console.log(newscore);
+        if (newscore===100) {return actions[i]};
+        if (newscore>score) {action = actions[i]; score = newscore}};
+    return action}
 
-/* Takes a state and performs minimax algorithm by returning the maximum value state if 
-   in control and the minimum value state if not in control */
+    function testminimax (role,state)
+    {nodes = 0;
+    terminals = 0;
+    var beg = performance.now();
+    var result = minimax(role,state);
+    var end = performance.now();
+    elapsed = Math.round(end-beg);
+    return result}
 
-function minimax (state) {
-    if (findterminalp(state,library)) {
-        return findreward(role,state,library)*1;
-    }
+    function minimax (role,state)
+    {nodes = nodes + 1;
+    if (findterminalp(state,library))
+        {terminals = terminals + 1; return findreward(role,state,library)*1};
     var active = findcontrol(state,library);
-    if (active===role) {
-        return maximize(state);
-    }
-    return minimize(state)
-}
+    if (active===role) {return maximize(active,role,state)};
+    return minimize(active,role,state)}
 
-/* Takes a state as input and returns maximum value that can be found using minimax 
-*/
-
-function maximize (state) {
-    var actions = findlegals(state,library);
-    if (actions.length===0) {
-        return 0;
-    }
+    function maximize (active,role,state)
+    {var actions = findlegals(state,library);
+    if (actions.length===0) {return 0};
     var score = 0;
-    for (var i=0; i<actions.length; i++) {
-        var newstate = simulate(actions[i],state,library);
-        var newscore = minimax(newstate);
-        if (newscore>score) {
-            score = newscore;
-        }
-    }
-    return score;
-}
+    for (var i=0; i<actions.length; i++)
+        {var newstate = simulate(actions[i],state,library);
+        var newscore = minimax(role,newstate);
+        if (newscore===100) {return 100};
+        if (newscore>score) {score = newscore}};
+    return score}
 
-/* Takes a state as input and returns minimum value that can be found using minimax 
-*/
-
-function minimize (state) {
-    var actions = findlegals(state,library);
-    if (actions.length===0) {
-        return 0;
-    }
+    function minimize (active,role,state)
+    {var actions = findlegals(state,library);
+    if (actions.length===0) {return 0};
     var score = 100;
-    for (var i=0; i<actions.length; i++) {
-        var newstate = simulate(actions[i],state,library);
-        var newscore = minimax(newstate);
-        if (newscore<score) {
-            score = newscore;
-        }
-    }
-    return score;
-}
+    for (var i=0; i<actions.length; i++)
+        {var newstate = simulate(actions[i],state,library);
+        var newscore = minimax(role,newstate);
+        if (newscore===0) {return 0};
+        if (newscore<score) {score = newscore}};
+    return score}
 
-//==============================================================================
-// End of player code
-//==============================================================================
+    function shuffle (array)
+    {for (var i = array.length-1; i>0; i--)
+        {var j = Math.floor(Math.random() * (i + 1));
+        var temp = array[i];
+        array[i] = array[j];
+        array[j] = temp};
+    return array}
+
+    //==============================================================================
+    // End of player code
+    //==============================================================================
+
