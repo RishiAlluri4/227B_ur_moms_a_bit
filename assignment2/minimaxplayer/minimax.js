@@ -4,16 +4,27 @@
 
     /*
     Our player this week uses the minimax algorithm discussed in class with a few optimizations which improve runtime. 
-    The minimax algorithm simulates the possible moves in a game’s tree to determine the best strategy by minimizing 
-    the potential loss. It evaluates all outcomes of all legal moves while predicting possible opponent moves and 
-    creates path with the most advantageous outcome. In single player games, this means the agent maximizes the value 
-    of each of its actions in order to achieve the highest score. In multiplayer games, the agent performs the minimax 
-    algorithm to optimize its decisions based on the presumption that the opponent will choose moves aimed at minimizing 
-    our score. To optimize the runtime of our agent, we used memoization within the minimax algorithm to prevent 
-    redundant calculations by storing results of rewards for each unique pair of role and state. Additionally, we 
-    implemented alpha-beta pruning in the minimax, maximize and minimize functions. This optimization helps greatly 
-    increases the efficiency of the algorithm and reduces the portion of the state space tree that must be explored by 
-    maintaining bounds on possible minimum and maximum scores.  
+    The minimax algorithm simulates the possible moves in a game’s tree to determine the best strategy by minimizing the potential loss. 
+    It evaluates all outcomes of all legal moves while predicting possible opponent moves and creates path with the most advantageous outcome. 
+    
+    In single player games, this means the agent maximizes the value of each of its actions in order to achieve the highest score. 
+    In multiplayer games, the agent performs the minimax algorithm to optimize its decisions based on the presumption that the opponent 
+    will choose moves aimed at minimizing our score. 
+    
+    To optimize the runtime of our agent, we used memoization within the minimax algorithm to prevent redundant calculations 
+    by storing results of rewards for each unique pair of role and state and returning the stored values if possible. 
+
+    Additionally, we implemented alpha-beta pruning in the minimax, maximize and minimize functions. 
+    The alpha variable represents the greatest score of an already explored option along the path to the root for the maximizer; 
+    conversely, the beta represents the lowest already explored option for the minimizer. 
+    By updating these values every time a node is evaluated and maintaining accurate bounds, 
+    the algorithm can skip branches of the state space tree that have no chance of changing the final minimum or maximum.
+
+    In an ideal scenario where all of the best moves are explored first within the tree, alpha-beta pruning can reduce the complexity of the minimax algorithm 
+    from O(b^d) to O(b^(d/2)) where ‘b’ is the branching factor of the tree and ‘d’ is the depth of the tree. 
+
+    Even in a scenario that is not completely optimal, the greatly increases the efficiency of the algorithm and 
+    significantly reduces the portion of the state space tree that must be explored.  
     */
 
     var manager = 'manager';
