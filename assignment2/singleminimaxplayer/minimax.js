@@ -2,6 +2,16 @@
     // Customization
     //==============================================================================
 
+    /*
+    Our player this week uses the minimax algorithm discussed in class with a few optimizations which improve runtime and efficiency.
+    In single player games, this means the agent maximizes the value of each of its actions in order to achieve the highest score. 
+    In multiplayer games, the agent performs the minimax algorithm to optimize its decisions based on the presumption that the opponent 
+    will choose moves aimed at minimizing our score. To optimize the runtime of our agent, we used memoization within the minimax 
+    algorithm to prevent redundant calculations by storing results of rewards for each unique pair of role and state. Additionally, 
+    we implemented alpha-beta pruning in the minimax, maximize and minimize functions. This optimization helps maintain bounds on 
+    possible minimum and maximum scores and reduces the portion of the state space tree that must be explored. 
+    */
+
     var manager = 'manager';
     var player = 'ur_moms_a_bit';
 
