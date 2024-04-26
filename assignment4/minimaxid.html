@@ -108,7 +108,7 @@
         for (var i=0; i<actions.length; i++) {
             //console.log(grind(actions[i]));
             var newstate = simulate(actions[i], state, library);
-            var newscore = minimaxid(role, newstate, alpha, beta, depth);
+            var newscore = minimaxid(role, newstate, alpha, beta, depth, deadline);
             if (newscore===false) {
                 return false;
             }
