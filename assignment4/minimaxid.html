@@ -57,7 +57,7 @@
         }
         // Testing efficiency
         // testminimax(role, state);
-        return playminimax(role);
+        return playminimaxid(role);
     }
 
     function stop (move) {
@@ -69,14 +69,30 @@
     }
 
     //==============================================================================
-    // minimaxdepth
+    // minimaxid
     //==============================================================================
+    function playminimaxid() {
+        var deadline = Date.now()+(playclock-1)*1000;
+        var best = findlegalx(state,library);
+        for (var depth=1; depth<10; depth++) {
+            // var nodes = 0;
+            // var terminals = 0;
+            var elapsed = 0;
+            var action = playminimaxidinner(state,depth,deadline);
+            if (action===false) {
+                console.log("Best: ", best, depth);
+                return best;
+            }
+            console.log("Depth: ", depth, Date.now()*1000, deadline);
+            best = action;
+        }
+            return best;
+    }
+    
+    
+        
 
-    var nodes = 0;
-    var terminals = 0;
-    var elapsed = 0;
-
-    function playminimax(role) {
+    function playminimaxidinner(role, depth, deadline) {
         var actions = shuffle(findlegals(state,library));
         if (actions.length===0) {
             return false;
@@ -88,13 +104,14 @@
         var score = 0;
         var alpha = -Infinity;  
         var beta = Infinity;
-        // Need to add loop to iterate throguh depths and time handling to return best move so far before clock expires.
-        var maxDepth = 2;
-        nodes = 0;
+        // nodes = 0;
         for (var i=0; i<actions.length; i++) {
             //console.log(grind(actions[i]));
             var newstate = simulate(actions[i], state, library);
-            var newscore = minimaxdepth(role, newstate, alpha, beta, maxDepth);
+            var newscore = minimaxid(role, newstate, alpha, beta, depth);
+            if (newscore===false) {
+                return false;
+            }
             //console.log(newscore);
             if (newscore===100) {
                 return actions[i];
@@ -108,8 +125,8 @@
     }
 
     function testminimaxdepth(role, state, alpha, beta, maxDepth) {
-        nodes = 0;
-        terminals = 0;
+        // nodes = 0;
+        // terminals = 0;
         var beg = performance.now();
         var result = minimaxdepth(role,state, alpha, beta, maxDepth);
         var end = performance.now();
@@ -164,15 +181,15 @@
         return evaluation;
     }
 
-    function minimaxdepth(role, state, alpha, beta, maxDepth) {
-        nodes = nodes + 1;
+    function minimaxid(role, state, alpha, beta, maxDepth, deadline) {
+        // nodes = nodes + 1;
         // use state for memo key
         var stateKey = JSON.stringify(state);
         if (stateKey in memo) {
             return memo[stateKey];
         }
         if (findterminalp(state,library)) {
-            terminals = terminals + 1;
+            // terminals = terminals + 1;
             var reward = findreward(role,state,library);
             memo[stateKey] = reward;  
             return reward;
@@ -181,18 +198,23 @@
         if (maxDepth <= 0) {
             return eval(state);
         }
+        // Return if time is up
+        if (Date.now()>deadline) {
+            console.log("Deadline")
+            return false;
+        }
         var active = findcontrol(state,library);
         if (active===role) {
-            var maxScore = maximize(active, role, state, alpha, beta, maxDepth - 1);  
+            var maxScore = maximize(active, role, state, alpha, beta, maxDepth - 1, deadline);  
             memo[stateKey] = maxScore;
             return maxScore;
         }
-        var minScore = minimize(active, role, state, alpha, beta, maxDepth - 1);
+        var minScore = minimize(active, role, state, alpha, beta, maxDepth - 1, deadline);
         memo[stateKey] = minScore;
         return minScore;
     }
 
-    function maximize(active, role, state, alpha, beta, maxDepth) {
+    function maximize(active, role, state, alpha, beta, maxDepth, deadline) {
         var actions = findlegals(state,library);
         if (actions.length===0) {
             return 0;
@@ -200,7 +222,10 @@
         var score = 0;
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i],state,library);
-            var newscore = minimaxdepth(role, newstate, alpha, beta, maxDepth);
+            var newscore = minimaxid(role, newstate, alpha, beta, maxDepth, deadline);
+            if (newscore===false) {
+                return false;
+            }
             score = Math.max(score, newscore); 
             if (score===100) {
                 return 100;
@@ -213,7 +238,7 @@
         return score;
     }
 
-    function minimize(active, role, state, alpha, beta, maxDepth) {
+    function minimize(active, role, state, alpha, beta, maxDepth, deadline) {
         var actions = findlegals(state,library);
         if (actions.length===0) {
             return 0;
@@ -221,7 +246,10 @@
         var score = 100;
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i],state,library);
-            var newscore = minimaxdepth(role, newstate, alpha, beta, maxDepth);
+            var newscore = minimaxid(role, newstate, alpha, beta, maxDepth, deadline);
+            if (newscore===false) {
+                return false;
+            }
             score = Math.min(score, newscore);
             if (score===0) {
                 return 0;
