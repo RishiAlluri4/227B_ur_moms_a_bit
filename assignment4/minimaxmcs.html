@@ -16,7 +16,7 @@
     var player = 'ur_moms_a_bit';
 
     //==============================================================================
-    // minimaxid.js
+    // minimaxmcs.js
     //==============================================================================
 
     var role = 'robot';
@@ -30,12 +30,9 @@
     // memoization
     var memo = {};
 
-    //testing
-    var nodes = 0;
-
     //==============================================================================
 
-    function ping () {
+    function ping() {
         return 'ready'
     }
 
@@ -59,8 +56,7 @@
             return false;
         }
         // Testing efficiency
-        // testminimax(role, state);
-        return playminimaxid(role);
+        return playminimax(role);
     }
 
     function stop(move) {
@@ -72,28 +68,14 @@
     }
 
     //==============================================================================
-    // minimaxid
+    // minimaxdepth
     //==============================================================================
-    function playminimaxid(role) {
-        var deadline = Date.now() + (playclock-2)*1000;
-        var best = findlegalx(state,library);
-        for (var maxDepth=1; maxDepth<10; maxDepth++) {
-            nodes = 0;
-            // var terminals = 0;
-            var elapsed = 0;
-            var action = playminimaxidinner(role, state, maxDepth, deadline);
-            if (action===false) {
-                return best;
-            }
-            best = action;
-        }
-            return best;
-    }
-    
-    
-        
 
-    function playminimaxidinner(role, state, maxDepth, deadline) {
+    var nodes = 0;
+    var terminals = 0;
+    var elapsed = 0;
+
+    function playminimax(role) {
         var actions = shuffle(findlegals(state,library));
         if (actions.length===0) {
             return false;
@@ -105,14 +87,11 @@
         var score = 0;
         var alpha = -Infinity;  
         var beta = Infinity;
+        var maxDepth = 2;
+        nodes = 0;
         for (var i=0; i<actions.length; i++) {
-            //console.log(grind(actions[i]));
             var newstate = simulate(actions[i], state, library);
-            var newscore = minimaxid(role, newstate, alpha, beta, maxDepth, deadline);
-            if (newscore===false) {
-                return false;
-            }
-            //console.log(newscore);
+            var newscore = minimaxmcs(role, newstate, alpha, beta, maxDepth);
             if (newscore===100) {
                 return actions[i];
             }
@@ -150,7 +129,6 @@
     // Mobility eval function
     function mobilityEval(state) {
         var active = findcontrol(state,library);
-        // console.log(mobility(state), focus(state))
         if (active===role) {
             return mobility(state);
         }
@@ -173,15 +151,36 @@
     // Combined evaluation function that is a weighted combination of other eval functions
     // TODO can maybe add memoization for eval functions
     function eval(state) {
-        var pessWeight = 0;
-        var intermediateWeight = 1;
-        var mobilityWeight = 0;
-        var evaluation = (pessWeight * pessimisticEval(state)) + (intermediateWeight * intermediateEval(state)) + (mobilityWeight * mobilityEval(state));
-        //console.log("Terminal?: ", findterminalp(state,library), "Pess: ", pessimisticEval(state), "Intermediate: ", intermediateEval(state), "Mobility: ", mobilityEval(state))
+        pessWeight = 0;
+        intermediateWeight = 1;
+        mobilityWeight = 0.1;
+        evaluation = (pessWeight * pessimisticEval(state)) + (intermediateWeight * intermediateEval(state)) + (mobilityWeight * mobilityEval(state));
         return evaluation;
     }
 
-    function minimaxid(role, state, alpha, beta, maxDepth, deadline) {
+    function montecarlo(state, count) {
+        var total = 0;
+        for (var i = 0; i < count; i++) {
+            total = total + depthcharge(state);
+        }
+        return total/count;
+    }
+
+    function randomindex(n) {
+        return Math.floor(Math.random()*n);
+    }
+
+    function depthcharge(state) {
+        if (findterminalp(state, library)) {
+            return findreward(role,state,library);
+        }
+        var actions = findlegals(state,library);
+        var best = randomindex(actions.length);
+        var newstate = simulate(actions[best],state,library);
+        return depthcharge(newstate);
+    }
+
+    function minimaxdepth(role, state, alpha, beta, maxDepth) {
         nodes = nodes + 1;
         // use state for memo key
         var stateKey = JSON.stringify(state);
@@ -189,29 +188,26 @@
             return memo[stateKey];
         }
         if (findterminalp(state,library)) {
-            // terminals = terminals + 1;
+            terminals = terminals + 1;
             var reward = findreward(role,state,library);
             memo[stateKey] = reward;  
             return reward;
         }
-        // console.log("Depth: ", maxDepth)
         if (maxDepth <= 0) {
-            return eval(state);
-        }
-        // Return if time is up
-        if (Date.now()>deadline) {
-            return false;
+            // Maybe we can somehow dynamically change count
+            var count = 10
+            return montecarlo(state, count);
         }
         var active = findcontrol(state,library);
         if (active===role) {
-            var maxScore = maximize(active, role, state, alpha, beta, maxDepth - 1, deadline);  
+            var maxScore = maximize(active, role, state, alpha, beta, maxDepth - 1);
             return maxScore;
         }
-        var minScore = minimize(active, role, state, alpha, beta, maxDepth - 1, deadline);
+        var minScore = minimize(active, role, state, alpha, beta, maxDepth - 1);
         return minScore;
     }
 
-    function maximize(active, role, state, alpha, beta, maxDepth, deadline) {
+    function maximize(active, role, state, alpha, beta, maxDepth) {
         var actions = findlegals(state,library);
         if (actions.length===0) {
             return 0;
@@ -219,10 +215,7 @@
         var score = 0;
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i],state,library);
-            var newscore = minimaxid(role, newstate, alpha, beta, maxDepth, deadline);
-            if (newscore===false) {
-                return false;
-            }
+            var newscore = minimaxdepth(role, newstate, alpha, beta, maxDepth);
             score = Math.max(score, newscore); 
             if (score===100) {
                 return 100;
@@ -235,7 +228,7 @@
         return score;
     }
 
-    function minimize(active, role, state, alpha, beta, maxDepth, deadline) {
+    function minimize(active, role, state, alpha, beta, maxDepth) {
         var actions = findlegals(state,library);
         if (actions.length===0) {
             return 0;
@@ -243,10 +236,7 @@
         var score = 100;
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i],state,library);
-            var newscore = minimaxid(role, newstate, alpha, beta, maxDepth, deadline);
-            if (newscore===false) {
-                return false;
-            }
+            var newscore = minimaxdepth(role, newstate, alpha, beta, maxDepth);
             score = Math.min(score, newscore);
             if (score===0) {
                 return 0;
@@ -259,7 +249,7 @@
         return score;
     }
 
-    function shuffle(array) {
+    function shuffle (array) {
         for (var i = array.length-1; i>0; i--) {
             var j = Math.floor(Math.random() * (i + 1));
             var temp = array[i];
@@ -337,7 +327,7 @@
     <td>
 Protocol: localstorage<br/>
 Metagamer: none<br/>
-Strategy: minimax+memo+abpruning+ideval<br/>
+Strategy: minimax+memo+abpruning+maxdeptheval<br/>
 Identifier: <span id='player'>ur_moms_a_bit</span> <img src="http://gamemaster.stanford.edu/images/pencil.gif" onclick='doplayer()'/>
     </td>
   </tr>

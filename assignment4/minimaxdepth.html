@@ -176,12 +176,10 @@
         }
         var active = findcontrol(state,library);
         if (active===role) {
-            var maxScore = maximize(active, role, state, alpha, beta, maxDepth - 1);  
-            memo[stateKey] = maxScore;
+            var maxScore = maximize(active, role, state, alpha, beta, maxDepth - 1);
             return maxScore;
         }
         var minScore = minimize(active, role, state, alpha, beta, maxDepth - 1);
-        memo[stateKey] = minScore;
         return minScore;
     }
 
