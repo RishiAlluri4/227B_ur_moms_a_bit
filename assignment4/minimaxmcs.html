@@ -56,7 +56,7 @@
             return false;
         }
         // Testing efficiency
-        return playminimax(role);
+        return playminimaxmcs(role);
     }
 
     function stop(move) {
@@ -67,15 +67,12 @@
         return false;
     }
 
-    //==============================================================================
-    // minimaxdepth
-    //==============================================================================
-
     var nodes = 0;
     var terminals = 0;
     var elapsed = 0;
+    var mcsDepth = 0;
 
-    function playminimax(role) {
+    function playminimaxmcs(role) {
         var actions = shuffle(findlegals(state,library));
         if (actions.length===0) {
             return false;
@@ -91,6 +88,8 @@
         nodes = 0;
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i], state, library);
+            // For testing
+            mcsDepth = 0;
             var newscore = minimaxmcs(role, newstate, alpha, beta, maxDepth);
             if (newscore===100) {
                 return actions[i];
@@ -138,14 +137,14 @@
     // Pessimistic evaluation function
     function pessimisticEval(state) {  
         if (findterminalp(state,library)) {
-            return findreward(role,state,library);
+            return findreward(role,state,library)*1;
         }
         return 0;
     }
 
     // Intermediate evaluation function
     function intermediateEval(state) {
-        return findreward(role,state,library);
+        return findreward(role,state,library)*1;
     }
 
     // Combined evaluation function that is a weighted combination of other eval functions
@@ -161,8 +160,10 @@
     function montecarlo(state, count) {
         var total = 0;
         for (var i = 0; i < count; i++) {
-            total = total + depthcharge(state);
+            total += depthcharge(state);
+            //total = Number(total) + Number(depthchargeval);
         }
+        // console.log(state, total, mcsDepth, total/count);
         return total/count;
     }
 
@@ -172,15 +173,16 @@
 
     function depthcharge(state) {
         if (findterminalp(state, library)) {
-            return findreward(role,state,library);
+            return findreward(role,state,library)*1;
         }
         var actions = findlegals(state,library);
         var best = randomindex(actions.length);
         var newstate = simulate(actions[best],state,library);
+        mcsDepth += 1;
         return depthcharge(newstate);
     }
 
-    function minimaxdepth(role, state, alpha, beta, maxDepth) {
+    function minimaxmcs(role, state, alpha, beta, maxDepth) {
         nodes = nodes + 1;
         // use state for memo key
         var stateKey = JSON.stringify(state);
@@ -189,7 +191,7 @@
         }
         if (findterminalp(state,library)) {
             terminals = terminals + 1;
-            var reward = findreward(role,state,library);
+            var reward = findreward(role,state,library)*1;
             memo[stateKey] = reward;  
             return reward;
         }
@@ -215,7 +217,7 @@
         var score = 0;
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i],state,library);
-            var newscore = minimaxdepth(role, newstate, alpha, beta, maxDepth);
+            var newscore = minimaxmcs(role, newstate, alpha, beta, maxDepth);
             score = Math.max(score, newscore); 
             if (score===100) {
                 return 100;
@@ -236,7 +238,7 @@
         var score = 100;
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i],state,library);
-            var newscore = minimaxdepth(role, newstate, alpha, beta, maxDepth);
+            var newscore = minimaxmcs(role, newstate, alpha, beta, maxDepth);
             score = Math.min(score, newscore);
             if (score===0) {
                 return 0;
@@ -327,7 +329,7 @@
     <td>
 Protocol: localstorage<br/>
 Metagamer: none<br/>
-Strategy: minimax+memo+abpruning+maxdeptheval<br/>
+Strategy: minimax+memo+abpruning+depthmcs<br/>
 Identifier: <span id='player'>ur_moms_a_bit</span> <img src="http://gamemaster.stanford.edu/images/pencil.gif" onclick='doplayer()'/>
     </td>
   </tr>
