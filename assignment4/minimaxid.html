@@ -30,6 +30,9 @@
     // memoization
     var memo = {};
 
+    //testing
+    var nodes = 0;
+
     //==============================================================================
 
     function ping () {
@@ -71,19 +74,17 @@
     //==============================================================================
     // minimaxid
     //==============================================================================
-    function playminimaxid() {
-        var deadline = Date.now()+(playclock-1)*1000;
+    function playminimaxid(role) {
+        var deadline = Date.now() + (playclock-2)*1000;
         var best = findlegalx(state,library);
-        for (var depth=1; depth<10; depth++) {
-            // var nodes = 0;
+        for (var maxDepth=1; maxDepth<10; maxDepth++) {
+            nodes = 0;
             // var terminals = 0;
             var elapsed = 0;
-            var action = playminimaxidinner(state,depth,deadline);
+            var action = playminimaxidinner(role, state, maxDepth, deadline);
             if (action===false) {
-                console.log("Best: ", best, depth);
                 return best;
             }
-            console.log("Depth: ", depth, Date.now()*1000, deadline);
             best = action;
         }
             return best;
@@ -92,7 +93,7 @@
     
         
 
-    function playminimaxidinner(role, depth, deadline) {
+    function playminimaxidinner(role, state, maxDepth, deadline) {
         var actions = shuffle(findlegals(state,library));
         if (actions.length===0) {
             return false;
@@ -104,11 +105,10 @@
         var score = 0;
         var alpha = -Infinity;  
         var beta = Infinity;
-        // nodes = 0;
         for (var i=0; i<actions.length; i++) {
             //console.log(grind(actions[i]));
             var newstate = simulate(actions[i], state, library);
-            var newscore = minimaxid(role, newstate, alpha, beta, depth, deadline);
+            var newscore = minimaxid(role, newstate, alpha, beta, maxDepth, deadline);
             if (newscore===false) {
                 return false;
             }
@@ -125,8 +125,8 @@
     }
 
     function testminimaxdepth(role, state, alpha, beta, maxDepth) {
-        // nodes = 0;
-        // terminals = 0;
+        nodes = 0;
+        terminals = 0;
         var beg = performance.now();
         var result = minimaxdepth(role,state, alpha, beta, maxDepth);
         var end = performance.now();
@@ -173,16 +173,16 @@
     // Combined evaluation function that is a weighted combination of other eval functions
     // TODO can maybe add memoization for eval functions
     function eval(state) {
-        pessWeight = 0;
-        intermediateWeight = 1;
-        mobilityWeight = 0.1;
-        evaluation = (pessWeight * pessimisticEval(state)) + (intermediateWeight * intermediateEval(state)) + (mobilityWeight * mobilityEval(state));
-        // console.log("Terminal?: ", findterminalp(state,library), "Pess: ", pessimisticEval(state), "Intermediate: ", intermediateEval(state), "Mobility: ", mobilityEval(state))
+        var pessWeight = 0;
+        var intermediateWeight = 1;
+        var mobilityWeight = 0;
+        var evaluation = (pessWeight * pessimisticEval(state)) + (intermediateWeight * intermediateEval(state)) + (mobilityWeight * mobilityEval(state));
+        //console.log("Terminal?: ", findterminalp(state,library), "Pess: ", pessimisticEval(state), "Intermediate: ", intermediateEval(state), "Mobility: ", mobilityEval(state))
         return evaluation;
     }
 
     function minimaxid(role, state, alpha, beta, maxDepth, deadline) {
-        // nodes = nodes + 1;
+        nodes = nodes + 1;
         // use state for memo key
         var stateKey = JSON.stringify(state);
         if (stateKey in memo) {
@@ -200,17 +200,14 @@
         }
         // Return if time is up
         if (Date.now()>deadline) {
-            console.log("Deadline")
             return false;
         }
         var active = findcontrol(state,library);
         if (active===role) {
             var maxScore = maximize(active, role, state, alpha, beta, maxDepth - 1, deadline);  
-            memo[stateKey] = maxScore;
             return maxScore;
         }
         var minScore = minimize(active, role, state, alpha, beta, maxDepth - 1, deadline);
-        memo[stateKey] = minScore;
         return minScore;
     }
 
@@ -262,7 +259,7 @@
         return score;
     }
 
-    function shuffle (array) {
+    function shuffle(array) {
         for (var i = array.length-1; i>0; i--) {
             var j = Math.floor(Math.random() * (i + 1));
             var temp = array[i];
