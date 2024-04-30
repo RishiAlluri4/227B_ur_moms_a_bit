@@ -86,11 +86,15 @@
         var deadline = Date.now() + (playclock-1)*1000;
         var deadlineid = Date.now() + (playclock - 2)*1000;
         // Use default actions in case unable to minimax
-        var defaultActions = findlegals(state,library);
-        var newest = new PriorityQueue(defaultActions.length);
-        for (var i = 0; i < defaultActions.length; i++) {
-            newest.enqueue(defaultActions[i], evalfunc(simulate(defaultActions[i], state, library)));
-        }
+        // var defaultActions = findlegals(state,library);
+        // var newest = new PriorityQueue(defaultActions.length);
+        // for (var i = 0; i < defaultActions.length; i++) {
+        //     newest.enqueue(defaultActions[i], evalfunc(simulate(defaultActions[i], state, library)));
+        // }
+
+        var defaultAction = findlegals(state,library)[0];
+        var newest = new PriorityQueue(1);
+        newest.enqueue(defaultAction, evalfunc(simulate(defaultAction, state, library)));
         for (var maxDepth=1; maxDepth<10; maxDepth++) {
             nodes = 0;
             // var terminals = 0;
