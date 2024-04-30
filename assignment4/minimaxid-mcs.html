@@ -33,6 +33,13 @@
     //testing
     var nodes = 0;
 
+
+    // CONSTANTS
+    var MCS_COUNT = 10;  // 
+    var MINIMAX_WEIGHT = 0.7;
+    var MCS_WEIGHT = 0.3
+
+
     //==============================================================================
 
     function ping () {
@@ -77,25 +84,54 @@
     function playminimaxid(role) {
         var deadline = Date.now() + (playclock-1)*1000;
         var deadlineid = Date.now() + (playclock - 4)*1000;
-        var best = findlegalx(state,library);
+        var newest = new PriorityQueue(10);
+        newest.enqueue(findlegalx(state,library), 0);
         for (var maxDepth=1; maxDepth<10; maxDepth++) {
             nodes = 0;
             // var terminals = 0;
             var elapsed = 0;
-            var action = playminimaxidinner(role, state, maxDepth, deadline, deadlineid);
-            if (action===false) {
-                return best;
+            // Priority queue with best actions
+            var topActions = playminimaxidinner(role, state, maxDepth, deadline, deadlineid);
+            if (topActions===false) {  // ID deadline passed, montecarlo now
+                topActions = newest;
+                topActions.printQueue();
+                topActionsList = topActions.toList();
+                var bestScore = 0;
+                var bestAction = topActionsList[0][0];
+                if (topActionsList[0][1] === 100) {
+                    return bestAction;
+                }
+                console.log("ActionList: ", topActionsList);
+                var actionResultStates = topActionsList.map(item => simulate(item[0], state, library));
+                var actionMcsValues = new Array(topActions.size()).fill(0);
+                var depthCharges = 0;
+                while (Date.now()<deadline) {
+                    depthCharges += 1;
+                    for (var i = 0; i<topActions.size(); i++) {
+                        actionMcsValues[i] += depthcharge(actionResultStates[i]);
+                    }
+                }
+                actionMcsValues = actionMcsValues.map(item => item / depthCharges);
+                for (var i = 0; i < actionMcsValues.size(); i++) {
+                    if (Date.now()<deadline) {
+                        return bestAction;
+                    }
+                    // TODO, dynamically determine montecarlo count
+                    weightedScore = MINIMAX_WEIGHT * topActionsList[i][1] + MCS_WEIGHT * actionMcsValues[i];
+                    if (weightedScore >=  bestScore) {
+                        bestScore = weightedScore;
+                        bestAction = topActionsList[i][0];
+                    }
+                }
+                return bestAction;
             }
-            best = action;
+            newest = topActions;
         }
-            return best;
     }
     
-    
-        
-
     function playminimaxidinner(role, state, maxDepth, deadline, deadlineid) {
         var actions = shuffle(findlegals(state,library));
+        var topActions = new PriorityQueue(actions.length);
         if (actions.length===0) {
             return false;
         }
@@ -113,16 +149,20 @@
             if (newscore===false) {
                 return false;
             }
-            //console.log(newscore);
+            
             if (newscore===100) {
-                return actions[i];
+                topActions.enqueue(action[i], newscore);
+                return topActions;
             }
+            /*
             if (newscore>score) {
                 action = actions[i]; 
                 score = newscore;
             }
+            */
+            topActions.enqueue(action[i], newscore);
         }
-        return action;
+        return topActions;
     }
 
     function testminimaxdepth(role, state, alpha, beta, maxDepth) {
@@ -227,13 +267,15 @@
             return eval(state);
         }
         // Return if time is up
-        if (Date.now()>deadline) {
+        if (Date.now()>deadlineid) {
             return false;
         }
+        /*
         if (Date.now()>deadlineid) {
             var count = 10;
             return montecarlo(state, count);
         }
+        */
         var active = findcontrol(state,library);
         if (active===role) {
             var maxScore = maximize(active, role, state, alpha, beta, maxDepth - 1, deadline);  
@@ -300,6 +342,82 @@
         }
         return array;
     }
+
+    class PriorityQueue {
+        constructor(maxSize = 10) { // Default max size is 10, but it can be set to any value
+            this.maxSize = maxSize;
+            this.queue = [];
+        }
+
+        // Function to add an element to the queue with a priority
+        enqueue(element, priority) {
+            // Creating an object from the element and its priority
+            const queueElement = { element, priority };
+            let added = false;
+
+            // Finding the correct position to insert the element to maintain the queue order
+            for (let i = 0; i < this.queue.length; i++) {
+                if (queueElement.priority < this.queue[i].priority) { // assuming lower numbers are higher priority
+                    this.queue.splice(i, 0, queueElement);
+                    added = true;
+                    break;
+                }
+            }
+
+            // If the element has the lowest priority, it is added at the end of the queue
+            if (!added) {
+                this.queue.push(queueElement);
+            }
+
+            // Check if the queue exceeds the maximum size and remove the element with the lowest priority (last element)
+            if (this.queue.length > this.maxSize) {
+                this.queue.pop();
+            }
+        }
+
+        // Function to remove the element from the queue
+        dequeue() {
+            if (this.isEmpty()) {
+                console.log("Queue is empty");
+                return undefined;
+            }
+            return this.queue.shift().element;
+        }
+
+        // Function to check if the queue is empty
+        isEmpty() {
+            return this.queue.length === 0;
+        }
+
+        // Function to get the front element of the queue
+        front() {
+            if (this.isEmpty()) {
+                console.log("Queue is empty");
+                return undefined;
+            }
+            return this.queue[0].element;
+        }
+
+        // Function to get the size of the queue
+        size() {
+            return this.queue.length;
+        }
+
+        // Function to print the queue contents
+        printQueue() {
+            console.log(this.queue);
+            /*
+            for (const item of this.queue) {
+                console.log(`${item.element} - Priority: ${item.priority}`);
+            }
+            */
+        }
+
+        toList() {
+            return this.queue.map(item => (item.element, item.priority));
+        }
+    }   
+
 
     //==============================================================================
     // End of player code
