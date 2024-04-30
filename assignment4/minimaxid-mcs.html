@@ -84,7 +84,7 @@
     function playminimaxid(role) {
         var deadline = Date.now() + (playclock-1)*1000;
         var deadlineid = Date.now() + (playclock - 4)*1000;
-        var newest = new PriorityQueue(10);
+        var newest = new PriorityQueue(1);
         newest.enqueue(findlegalx(state,library), 0);
         for (var maxDepth=1; maxDepth<10; maxDepth++) {
             nodes = 0;
@@ -93,40 +93,38 @@
             // Priority queue with best actions
             var topActions = playminimaxidinner(role, state, maxDepth, deadline, deadlineid);
             if (topActions) {
-                console.log("Found top actions", topActions.printQueue());
+                console.log("Found top actions", topActions.toList());
             }
             if (topActions===false) {  // ID deadline passed, montecarlo now
-                console.log("time to montecarlo");
+                console.log("time to montecarlo", "max depth reached: ", maxDepth);
                 topActions = newest;
-                //topActions.printQueue();
                 topActionsList = topActions.toList();
                 var bestScore = 0;
                 var bestAction = topActionsList[0][0];
+                console.log("best minimax action + score", topActionsList[0][0], topActionsList[0][1]);
                 if (topActionsList[0][1] === 100) {
                     return bestAction;
                 }
                 //console.log("ActionList: ", topActionsList);
                 var actionResultStates = topActionsList.map(item => simulate(item[0], state, library));
                 var actionMcsValues = new Array(topActions.size()).fill(0);
+                var actionMcsTotals = new Array(topActions.size()).fill(0);
                 var depthCharges = 0;
                 while (Date.now()<deadline) {
                     depthCharges += 1;
                     for (var i = 0; i<topActions.size(); i++) {
-                        actionMcsValues[i] += depthcharge(actionResultStates[i]);
+                        actionMcsTotals[i] += depthcharge(actionResultStates[i]);
+                        actionMcsValues[i] = actionMcsTotals[i] / depthCharges;
+                        // TODO, dynamically determine montecarlo count
+                        weightedScore = MINIMAX_WEIGHT * topActionsList[i][1] + MCS_WEIGHT * actionMcsValues[i];
+                        if (weightedScore >=  bestScore) {
+                            bestScore = weightedScore;
+                            bestAction = topActionsList[i][0];
+                        }
                     }
                 }
-                actionMcsValues = actionMcsValues.map(item => item / depthCharges);
-                for (var i = 0; i < actionMcsValues.length; i++) {
-                    if (Date.now()<deadline) {
-                        return bestAction;
-                    }
-                    // TODO, dynamically determine montecarlo count
-                    weightedScore = MINIMAX_WEIGHT * topActionsList[i][1] + MCS_WEIGHT * actionMcsValues[i];
-                    if (weightedScore >=  bestScore) {
-                        bestScore = weightedScore;
-                        bestAction = topActionsList[i][0];
-                    }
-                }
+                console.log("num depth charges per action: ", depthCharges)
+                console.log("best minimaxmcs action + weighted score", bestAction, bestScore)
                 return bestAction;
             }
             newest = topActions;
