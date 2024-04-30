@@ -30,10 +30,6 @@
     // memoization
     var memo = {};
 
-    //testing
-    var nodes = 0;
-
-
     // CONSTANTS
     var MCS_COUNT = 10;  // 
     var MINIMAX_WEIGHT = 0.98;
@@ -65,8 +61,6 @@
         if (findcontrol(state,library)!==role) {
             return false;
         }
-        // Testing efficiency
-        // testminimax(role, state);
         return playminimaxid(role);
     }
 
@@ -99,13 +93,10 @@
             nodes = 0;
             // var terminals = 0;
             var elapsed = 0;
+
             // Priority queue with best actions
-            var topActions = playminimaxidinner(role, state, maxDepth, deadline, deadlineid);
-            if (topActions) {
-                console.log("Found top actions", topActions.toList(), "Depth: ", maxDepth);
-            }
+            var topActions = playminimaxidinner(state, maxDepth, deadline, deadlineid);
             if (topActions===false) {  // ID deadline passed, montecarlo now
-                console.log("time to montecarlo", "max depth reached: ", maxDepth - 1);
                 topActions = newest;
                 topActionsList = topActions.toList();
                 var bestScore = topActionsList[0][1];
@@ -114,7 +105,6 @@
                 if (bestScore === 100) {
                     return bestAction;
                 }
-                //console.log("ActionList: ", topActionsList);
                 var actionResultStates = topActionsList.map(item => simulate(item[0], state, library));
                 var actionMcsValues = new Array(topActions.size()).fill(0);
                 var actionMcsTotals = new Array(topActions.size()).fill(0);
@@ -140,7 +130,7 @@
         }
     }
     
-    function playminimaxidinner(role, state, maxDepth, deadline, deadlineid) {
+    function playminimaxidinner(state, maxDepth, deadline, deadlineid) {
         var actions = shuffle(findlegals(state,library));
         var topActions = new PriorityQueue(actions.length);
         if (actions.length===0) {
@@ -154,34 +144,24 @@
         var alpha = -Infinity;  
         var beta = Infinity;
         for (var i=0; i<actions.length; i++) {
-            //console.log("action: ", actions[i]);
             var newstate = simulate(actions[i], state, library);
-            var newscore = minimaxid(role, newstate, alpha, beta, maxDepth, deadline, deadlineid);
-            //console.log("newscore: ", newscore);
+            var newscore = minimaxid(newstate, alpha, beta, maxDepth, deadline, deadlineid);
             if (newscore===false) {
                 return false;
             }
-            
             if (newscore===100) {
                 topActions.enqueue(actions[i], newscore);
                 return topActions;
             }
-            /*
-            if (newscore>score) {
-                action = actions[i]; 
-                score = newscore;
-            }
-            */
             topActions.enqueue(actions[i], newscore);
         }
         return topActions;
     }
 
-    function testminimaxdepth(role, state, alpha, beta, maxDepth) {
-        nodes = 0;
+    function testminimaxdepth(state, alpha, beta, maxDepth) {
         terminals = 0;
         var beg = performance.now();
-        var result = minimaxdepth(role,state, alpha, beta, maxDepth);
+        var result = minimaxdepth(state, alpha, beta, maxDepth);
         var end = performance.now();
         elapsed = Math.round(end-beg);
         console.log('Elapsed time: ' + elapsed + ' ms');
@@ -261,8 +241,7 @@
         return depthcharge(newstate);
     }
 
-    function minimaxid(role, state, alpha, beta, maxDepth, deadline, deadlineid) {
-        nodes = nodes + 1;
+    function minimaxid(state, alpha, beta, maxDepth, deadline, deadlineid) {
         // use state for memo key
         var stateKey = JSON.stringify(state);
         if (stateKey in memo) {
@@ -274,7 +253,6 @@
             memo[stateKey] = reward;  
             return reward;
         }
-        // console.log("Depth: ", maxDepth)
         if (maxDepth <= 0) {
             return evalfunc(state);
         }
@@ -282,22 +260,16 @@
         if (Date.now()>deadlineid) {
             return false;
         }
-        /*
-        if (Date.now()>deadlineid) {
-            var count = 10;
-            return montecarlo(state, count);
-        }
-        */
         var active = findcontrol(state,library);
         if (active===role) {
-            var maxScore = maximize(active, role, state, alpha, beta, maxDepth - 1, deadline);  
+            var maxScore = maximize(active, state, alpha, beta, maxDepth - 1, deadline);  
             return maxScore;
         }
-        var minScore = minimize(active, role, state, alpha, beta, maxDepth - 1, deadline);
+        var minScore = minimize(active, state, alpha, beta, maxDepth - 1, deadline);
         return minScore;
     }
 
-    function maximize(active, role, state, alpha, beta, maxDepth, deadline) {
+    function maximize(active, state, alpha, beta, maxDepth, deadline) {
         var actions = findlegals(state,library);
         if (actions.length===0) {
             return 0;
@@ -305,7 +277,7 @@
         var score = 0;
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i],state,library);
-            var newscore = minimaxid(role, newstate, alpha, beta, maxDepth, deadline);
+            var newscore = minimaxid(newstate, alpha, beta, maxDepth, deadline);
             if (newscore===false) {
                 return false;
             }
@@ -321,7 +293,7 @@
         return score;
     }
 
-    function minimize(active, role, state, alpha, beta, maxDepth, deadline) {
+    function minimize(active, state, alpha, beta, maxDepth, deadline) {
         var actions = findlegals(state,library);
         if (actions.length===0) {
             return 0;
@@ -329,7 +301,7 @@
         var score = 100;
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i],state,library);
-            var newscore = minimaxid(role, newstate, alpha, beta, maxDepth, deadline);
+            var newscore = minimaxid(newstate, alpha, beta, maxDepth, deadline);
             if (newscore===false) {
                 return false;
             }
@@ -417,12 +389,9 @@
 
         // Function to print the queue contents
         printQueue() {
-            console.log(this.queue);
-            /*
             for (const item of this.queue) {
                 console.log(`${item.element} - Priority: ${item.priority}`);
             }
-            */
         }
 
         toList() {
