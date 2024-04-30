@@ -30,10 +30,6 @@
     // memoization
     var memo = {};
 
-    //testing
-    var nodes = 0;
-
-
     // CONSTANTS
     var MCS_COUNT = 10;  // 
     var MINIMAX_WEIGHT = 0.7;
@@ -84,7 +80,7 @@
         var deadlineid = Date.now() + (playclock - 4)*1000;
         var newest = new PriorityQueue(1);
         newest.enqueue(findlegalx(state,library), 0);
-        for (var maxDepth=1; maxDepth<10; maxDepth++) {
+        while (true) {  // Iterative deepen until deadline hit
             // Priority queue with best actions
             var topActions = playminimaxidinner(state, maxDepth, deadline, deadlineid);
             if (topActions===false) {  // ID deadline passed, montecarlo now
@@ -140,24 +136,16 @@
             if (newscore===false) {
                 return false;
             }
-            
             if (newscore===100) {
                 topActions.enqueue(actions[i], newscore);
                 return topActions;
             }
-            /*
-            if (newscore>score) {
-                action = actions[i]; 
-                score = newscore;
-            }
-            */
             topActions.enqueue(actions[i], newscore);
         }
         return topActions;
     }
 
     function testminimaxdepth(state, alpha, beta, maxDepth) {
-        nodes = 0;
         terminals = 0;
         var beg = performance.now();
         var result = minimaxdepth(state, alpha, beta, maxDepth);
@@ -241,7 +229,6 @@
     }
 
     function minimaxid(state, alpha, beta, maxDepth, deadline, deadlineid) {
-        nodes = nodes + 1;
         // use state for memo key
         var stateKey = JSON.stringify(state);
         if (stateKey in memo) {
@@ -253,7 +240,6 @@
             memo[stateKey] = reward;  
             return reward;
         }
-        // console.log("Depth: ", maxDepth)
         if (maxDepth <= 0) {
             return eval(state);
         }
@@ -261,12 +247,6 @@
         if (Date.now()>deadlineid) {
             return false;
         }
-        /*
-        if (Date.now()>deadlineid) {
-            var count = 10;
-            return montecarlo(state, count);
-        }
-        */
         var active = findcontrol(state,library);
         if (active===role) {
             var maxScore = maximize(active, state, alpha, beta, maxDepth - 1, deadline);  
@@ -396,12 +376,9 @@
 
         // Function to print the queue contents
         printQueue() {
-            console.log(this.queue);
-            /*
             for (const item of this.queue) {
                 console.log(`${item.element} - Priority: ${item.priority}`);
             }
-            */
         }
 
         toList() {
