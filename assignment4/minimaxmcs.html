@@ -88,8 +88,6 @@
         nodes = 0;
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i], state, library);
-            // For testing
-            mcsDepth = 0;
             var newscore = minimaxmcs(role, newstate, alpha, beta, maxDepth);
             if (newscore===100) {
                 return actions[i];
@@ -152,13 +150,15 @@
     function eval(state) {
         pessWeight = 0;
         intermediateWeight = 1;
-        mobilityWeight = 0.1;
+        mobilityWeight = 0;
         evaluation = (pessWeight * pessimisticEval(state)) + (intermediateWeight * intermediateEval(state)) + (mobilityWeight * mobilityEval(state));
         return evaluation;
     }
 
     function montecarlo(state, count) {
         var total = 0;
+        // For testing
+        mcsDepth = 0;
         for (var i = 0; i < count; i++) {
             total += depthcharge(state);
             //total = Number(total) + Number(depthchargeval);
@@ -293,7 +293,7 @@
 
 <!--=======================================================================-->
 
-<body bgcolor='#aabbbb' onload='doinitialize()'>
+<body bgcolor='#000000' onload='doinitialize()'>
   <center>
     <table width='720' cellspacing='0' cellpadding='40' bgcolor='#ffffff'>
       <tr>
@@ -309,7 +309,8 @@
       </td>
       <td align='center'>
         <span style='font-size:18pt'>&nbsp;</span>
-        <span style='font-size:32pt'>Gamemaster</span><br/>
+        <span style='font-size:28pt'>Ur Moms A Bit</span><br/>
+        <span style='font-size:22pt'>&#x1F449; &#x1F469; &#x1F170; &#x1F479;</span>
       </td>
       <td width='180' align='center' style='color:#000066;font-size:18px'>
         <i>General<br/>Game<br/>Playing</i>
