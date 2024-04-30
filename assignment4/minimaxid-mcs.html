@@ -16,7 +16,7 @@
     var player = 'ur_moms_a_bit';
 
     //==============================================================================
-    // minimaxid.js
+    // minimaxidmcs.js
     //==============================================================================
 
     var role = 'robot';
@@ -36,8 +36,8 @@
 
     // CONSTANTS
     var MCS_COUNT = 10;  // 
-    var MINIMAX_WEIGHT = 0.7;
-    var MCS_WEIGHT = 0.3
+    var MINIMAX_WEIGHT = 0.98;
+    var MCS_WEIGHT = 1 - MINIMAX_WEIGHT;
 
 
     //==============================================================================
@@ -82,10 +82,15 @@
     // minimaxidmcs
     //==============================================================================
     function playminimaxid(role) {
+        console.log("New Move, current state: ", state);
         var deadline = Date.now() + (playclock-1)*1000;
-        var deadlineid = Date.now() + (playclock - 4)*1000;
-        var newest = new PriorityQueue(1);
-        newest.enqueue(findlegalx(state,library), 0);
+        var deadlineid = Date.now() + (playclock - 2)*1000;
+        // Use default actions in case unable to minimax
+        var defaultActions = findlegals(state,library);
+        var newest = new PriorityQueue(defaultActions.length);
+        for (var i = 0; i < defaultActions.length; i++) {
+            newest.enqueue(defaultActions[i], evalfunc(simulate(defaultActions[i], state, library)));
+        }
         for (var maxDepth=1; maxDepth<10; maxDepth++) {
             nodes = 0;
             // var terminals = 0;
@@ -93,16 +98,16 @@
             // Priority queue with best actions
             var topActions = playminimaxidinner(role, state, maxDepth, deadline, deadlineid);
             if (topActions) {
-                console.log("Found top actions", topActions.toList());
+                console.log("Found top actions", topActions.toList(), "Depth: ", maxDepth);
             }
             if (topActions===false) {  // ID deadline passed, montecarlo now
-                console.log("time to montecarlo", "max depth reached: ", maxDepth);
+                console.log("time to montecarlo", "max depth reached: ", maxDepth - 1);
                 topActions = newest;
                 topActionsList = topActions.toList();
-                var bestScore = 0;
+                var bestScore = topActionsList[0][1];
                 var bestAction = topActionsList[0][0];
                 console.log("best minimax action + score", topActionsList[0][0], topActionsList[0][1]);
-                if (topActionsList[0][1] === 100) {
+                if (bestScore === 100) {
                     return bestAction;
                 }
                 //console.log("ActionList: ", topActionsList);
@@ -216,7 +221,7 @@
 
     // Combined evaluation function that is a weighted combination of other eval functions
     // TODO can maybe add memoization for eval functions
-    function eval(state) {
+    function evalfunc(state) {
         var pessWeight = 0;
         var intermediateWeight = 1;
         var mobilityWeight = 0;
@@ -267,7 +272,7 @@
         }
         // console.log("Depth: ", maxDepth)
         if (maxDepth <= 0) {
-            return eval(state);
+            return evalfunc(state);
         }
         // Return if time is up
         if (Date.now()>deadlineid) {
