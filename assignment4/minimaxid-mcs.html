@@ -92,16 +92,20 @@
             var elapsed = 0;
             // Priority queue with best actions
             var topActions = playminimaxidinner(role, state, maxDepth, deadline, deadlineid);
+            if (topActions) {
+                console.log("Found top actions", topActions.printQueue());
+            }
             if (topActions===false) {  // ID deadline passed, montecarlo now
+                console.log("time to montecarlo");
                 topActions = newest;
-                topActions.printQueue();
+                //topActions.printQueue();
                 topActionsList = topActions.toList();
                 var bestScore = 0;
                 var bestAction = topActionsList[0][0];
                 if (topActionsList[0][1] === 100) {
                     return bestAction;
                 }
-                console.log("ActionList: ", topActionsList);
+                //console.log("ActionList: ", topActionsList);
                 var actionResultStates = topActionsList.map(item => simulate(item[0], state, library));
                 var actionMcsValues = new Array(topActions.size()).fill(0);
                 var depthCharges = 0;
@@ -112,7 +116,7 @@
                     }
                 }
                 actionMcsValues = actionMcsValues.map(item => item / depthCharges);
-                for (var i = 0; i < actionMcsValues.size(); i++) {
+                for (var i = 0; i < actionMcsValues.length; i++) {
                     if (Date.now()<deadline) {
                         return bestAction;
                     }
@@ -143,15 +147,16 @@
         var alpha = -Infinity;  
         var beta = Infinity;
         for (var i=0; i<actions.length; i++) {
-            //console.log(grind(actions[i]));
+            //console.log("action: ", actions[i]);
             var newstate = simulate(actions[i], state, library);
             var newscore = minimaxid(role, newstate, alpha, beta, maxDepth, deadline, deadlineid);
+            //console.log("newscore: ", newscore);
             if (newscore===false) {
                 return false;
             }
             
             if (newscore===100) {
-                topActions.enqueue(action[i], newscore);
+                topActions.enqueue(actions[i], newscore);
                 return topActions;
             }
             /*
@@ -160,7 +165,7 @@
                 score = newscore;
             }
             */
-            topActions.enqueue(action[i], newscore);
+            topActions.enqueue(actions[i], newscore);
         }
         return topActions;
     }
@@ -245,7 +250,7 @@
         var actions = findlegals(state,library);
         var best = randomindex(actions.length);
         var newstate = simulate(actions[best],state,library);
-        mcsDepth += 1;
+        //mcsDepth += 1;
         return depthcharge(newstate);
     }
 
@@ -357,7 +362,7 @@
 
             // Finding the correct position to insert the element to maintain the queue order
             for (let i = 0; i < this.queue.length; i++) {
-                if (queueElement.priority < this.queue[i].priority) { // assuming lower numbers are higher priority
+                if (queueElement.priority > this.queue[i].priority) { // assuming lower numbers are higher priority
                     this.queue.splice(i, 0, queueElement);
                     added = true;
                     break;
@@ -414,7 +419,7 @@
         }
 
         toList() {
-            return this.queue.map(item => (item.element, item.priority));
+            return this.queue.map(item => [item.element, item.priority]);
         }
     }   
 
