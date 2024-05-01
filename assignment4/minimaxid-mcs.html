@@ -75,29 +75,27 @@
     //==============================================================================
     // minimaxidmcs
     //==============================================================================
+
+    /* This function takes as input an agent's role and returns the best possible action to take. The best action
+       is determined using a weighted average between iterative deepening scores and Monte Carlo sampling scores. */
     function playminimaxid(role) {
         console.log("New Move, current state: ", state);
         var deadline = Date.now() + (playclock-1)*1000;
-        var deadlineid = Date.now() + (playclock - 2)*1000;
-        // Use default actions in case unable to minimax
-        // var defaultActions = findlegals(state,library);
-        // var newest = new PriorityQueue(defaultActions.length);
-        // for (var i = 0; i < defaultActions.length; i++) {
-        //     newest.enqueue(defaultActions[i], evalfunc(simulate(defaultActions[i], state, library)));
-        // }
-
-        var defaultAction = findlegals(state,library)[0];
-        var newest = new PriorityQueue(1);
-        newest.enqueue(defaultAction, evalfunc(simulate(defaultAction, state, library)));
-        for (var maxDepth=1; maxDepth<10; maxDepth++) {
-            nodes = 0;
-            // var terminals = 0;
-            var elapsed = 0;
+        var deadlineid = Date.now() + (playclock - 3)*1000;
+         // Use default actions in case unable to minimax
+        var defaultActions = findlegals(state,library);
+        var newest = new PriorityQueue(defaultActions.length);
+        for (var i = 0; i < defaultActions.length; i++) {
+            newest.enqueue(defaultActions[i], evalfunc(simulate(defaultActions[i], state, library)));
+        }
+        var maxDepth = 1;
+        while (true) {  // Perform iterative deepening until cutoff time is hit
 
             // Priority queue with best actions
-            var topActions = playminimaxidinner(state, maxDepth, deadline, deadlineid);
+            var topActions = playminimaxidinner(state, maxDepth, deadlineid);
+
             if (topActions===false) {  // ID deadline passed, montecarlo now
-                topActions = newest;
+                topActions = newest;  // Revert topActions back to last full depth explored
                 topActionsList = topActions.toList();
                 var bestScore = topActionsList[0][1];
                 var bestAction = topActionsList[0][0];
@@ -105,17 +103,24 @@
                 if (bestScore === 100) {
                     return bestAction;
                 }
+                // Find result states achieved for every possible action
                 var actionResultStates = topActionsList.map(item => simulate(item[0], state, library));
                 var actionMcsValues = new Array(topActions.size()).fill(0);
                 var actionMcsTotals = new Array(topActions.size()).fill(0);
                 var depthCharges = 0;
-                while (Date.now()<deadline) {
+                while (Date.now() < deadline) {  // Perform montecarlo sampling until final deadline hit
                     depthCharges += 1;
                     for (var i = 0; i<topActions.size(); i++) {
+                        if (Date.now() > deadline) {  // If final deadline passed, break deptch charge loop and return best action
+                            break;
+                        }
+                        // Update the MCS probability each time depth charge is performed from the action
                         actionMcsTotals[i] += depthcharge(actionResultStates[i]);
                         actionMcsValues[i] = actionMcsTotals[i] / depthCharges;
-                        // TODO, dynamically determine montecarlo count
+                        // Create weighted score based on the minimax score (from i.d.) and montecarlo sampling score
                         weightedScore = MINIMAX_WEIGHT * topActionsList[i][1] + MCS_WEIGHT * actionMcsValues[i];
+
+                        // Update best action
                         if (weightedScore >=  bestScore) {
                             bestScore = weightedScore;
                             bestAction = topActionsList[i][0];
@@ -127,10 +132,15 @@
                 return bestAction;
             }
             newest = topActions;
+            maxDepth += 1;
         }
     }
     
-    function playminimaxidinner(state, maxDepth, deadline, deadlineid) {
+    /* This function performs iterative deepening from the provided state down to the given max depth, 
+       and returns a priority queue containing each possible action and its minimax score achieved from 
+       DFSing to the maxDepth provided. If the current time passed the provided deadlineid, the function
+       returns false in order to indicate an incomplete search to the maxDepth given. */
+    function playminimaxidinner(state, maxDepth, deadlineid) {
         var actions = shuffle(findlegals(state,library));
         var topActions = new PriorityQueue(actions.length);
         if (actions.length===0) {
@@ -141,11 +151,15 @@
         }
         var action = actions[0];
         var score = 0;
+
+        // Used for alpha-beta pruning within maximize and minimize functions
         var alpha = -Infinity;  
         var beta = Infinity;
+
+        // Simulate each possible action down to maxDepth provided using minimax assumptions
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i], state, library);
-            var newscore = minimaxid(newstate, alpha, beta, maxDepth, deadline, deadlineid);
+            var newscore = minimaxid(newstate, alpha, beta, maxDepth, deadlineid);
             if (newscore===false) {
                 return false;
             }
@@ -153,6 +167,7 @@
                 topActions.enqueue(actions[i], newscore);
                 return topActions;
             }
+            // Enqueue action and best minimax score found from starting with current action 
             topActions.enqueue(actions[i], newscore);
         }
         return topActions;
@@ -183,7 +198,6 @@
     // Mobility eval function
     function mobilityEval(state) {
         var active = findcontrol(state,library);
-        // console.log(mobility(state), focus(state))
         if (active===role) {
             return mobility(state);
         }
@@ -210,26 +224,25 @@
         var intermediateWeight = 1;
         var mobilityWeight = 0;
         var evaluation = (pessWeight * pessimisticEval(state)) + (intermediateWeight * intermediateEval(state)) + (mobilityWeight * mobilityEval(state));
-        //console.log("Terminal?: ", findterminalp(state,library), "Pess: ", pessimisticEval(state), "Intermediate: ", intermediateEval(state), "Mobility: ", mobilityEval(state))
         return evaluation;
     }
 
     function montecarlo(state, count) {
         var total = 0;
-        // For testing
         mcsDepth = 0;
         for (var i = 0; i < count; i++) {
             total += depthcharge(state);
-            //total = Number(total) + Number(depthchargeval);
         }
-        // console.log(state, total, mcsDepth, total/count);
         return total/count;
     }
 
+    // Returns random index between 0 and n (exclusive)
     function randomindex(n) {
         return Math.floor(Math.random()*n);
     }
 
+    /* Given a state, this function performs random actions until a terminal state is reached,
+       and returns the rewards found at the terminal state */
     function depthcharge(state) {
         if (findterminalp(state, library)) {
             return findreward(role,state,library)*1;
@@ -237,18 +250,18 @@
         var actions = findlegals(state,library);
         var best = randomindex(actions.length);
         var newstate = simulate(actions[best],state,library);
-        //mcsDepth += 1;
         return depthcharge(newstate);
     }
 
-    function minimaxid(state, alpha, beta, maxDepth, deadline, deadlineid) {
-        // use state for memo key
+    /* Given a state and maxDepth, performs minimax evaluation on the state until the maxDepth is reached.
+       Calls maximize if the turn belongs to the agent or minimize if the turn belongs to the opponent. 
+       If deadline is reached, returns flase to indicate incomplete depth first search. */
+    function minimaxid(state, alpha, beta, maxDepth, deadlineid) {
         var stateKey = JSON.stringify(state);
         if (stateKey in memo) {
             return memo[stateKey];
         }
         if (findterminalp(state,library)) {
-            // terminals = terminals + 1;
             var reward = findreward(role,state,library)*1;
             memo[stateKey] = reward;  
             return reward;
@@ -262,14 +275,16 @@
         }
         var active = findcontrol(state,library);
         if (active===role) {
-            var maxScore = maximize(active, state, alpha, beta, maxDepth - 1, deadline);  
+            var maxScore = maximize(active, state, alpha, beta, maxDepth - 1, deadlineid);  
             return maxScore;
         }
-        var minScore = minimize(active, state, alpha, beta, maxDepth - 1, deadline);
+        var minScore = minimize(active, state, alpha, beta, maxDepth - 1, deadlineid);
         return minScore;
     }
 
-    function maximize(active, state, alpha, beta, maxDepth, deadline) {
+    /* This function returns maximum score minimax score that can be achieved from all possible actions at the 
+       current state */
+    function maximize(active, state, alpha, beta, maxDepth, deadlineid) {
         var actions = findlegals(state,library);
         if (actions.length===0) {
             return 0;
@@ -277,7 +292,7 @@
         var score = 0;
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i],state,library);
-            var newscore = minimaxid(newstate, alpha, beta, maxDepth, deadline);
+            var newscore = minimaxid(newstate, alpha, beta, maxDepth, deadlineid);
             if (newscore===false) {
                 return false;
             }
@@ -293,7 +308,9 @@
         return score;
     }
 
-    function minimize(active, state, alpha, beta, maxDepth, deadline) {
+    /* This function returns minimum score minimax score that can be achieved from all possible actions at the 
+       current state */
+    function minimize(active, state, alpha, beta, maxDepth, deadlineid) {
         var actions = findlegals(state,library);
         if (actions.length===0) {
             return 0;
@@ -301,7 +318,7 @@
         var score = 100;
         for (var i=0; i<actions.length; i++) {
             var newstate = simulate(actions[i],state,library);
-            var newscore = minimaxid(newstate, alpha, beta, maxDepth, deadline);
+            var newscore = minimaxid(newstate, alpha, beta, maxDepth, deadlineid);
             if (newscore===false) {
                 return false;
             }
@@ -328,18 +345,16 @@
     }
 
     class PriorityQueue {
-        constructor(maxSize = 10) { // Default max size is 10, but it can be set to any value
+        constructor(maxSize = 10) { // Default max size is 10, but can be any value
             this.maxSize = maxSize;
             this.queue = [];
         }
 
         // Function to add an element to the queue with a priority
         enqueue(element, priority) {
-            // Creating an object from the element and its priority
             const queueElement = { element, priority };
             let added = false;
 
-            // Finding the correct position to insert the element to maintain the queue order
             for (let i = 0; i < this.queue.length; i++) {
                 if (queueElement.priority > this.queue[i].priority) { // assuming lower numbers are higher priority
                     this.queue.splice(i, 0, queueElement);
@@ -348,12 +363,10 @@
                 }
             }
 
-            // If the element has the lowest priority, it is added at the end of the queue
             if (!added) {
                 this.queue.push(queueElement);
             }
 
-            // Check if the queue exceeds the maximum size and remove the element with the lowest priority (last element)
             if (this.queue.length > this.maxSize) {
                 this.queue.pop();
             }
@@ -406,28 +419,22 @@
   </script>
 </head>
 <!--
-    TODO - need to change: Our player this week uses the minimax algorithm discussed in class with a few optimizations which improve runtime. 
-    The minimax algorithm simulates the possible moves in a game’s tree to determine the best strategy by minimizing the potential loss. 
-    It evaluates all outcomes of all legal moves while predicting possible opponent moves and creates path with the most advantageous outcome. 
+    Our game-playing agent integrates two search strategies covered in last week’s lecture: iterative deepening and Monte Carlo sampling.
+
+    Iterative deepening executes depth-first searches, starting with a shallow depth limit and incrementally deepening the limit with each 
+    iteration until a solution is found or a depth limit is reached. This method ensures that all shallower nodes are explored before 
+    moving to deeper nodes operates under the minimax assumptions that we aim to maximize our score while the opponent aims to minimize our score. 
     
-    In single player games, this means the agent maximizes the value of each of its actions in order to achieve the highest score. 
-    In multiplayer games, the agent performs the minimax algorithm to optimize its decisions based on the presumption that the opponent 
-    will choose moves aimed at minimizing our score. 
-    
-    To optimize the runtime of our agent, we used memoization within the minimax algorithm to prevent redundant calculations 
-    by storing results of rewards for each unique pair of role and state and returning the stored values if possible. 
+    On the other hand, Monte Carlo sampling runs multiple random simulations from the current state to a terminal state to estimate the most 
+    probable outcomes of actions and provide insight into possible future states without exhaustively searching the entire game tree. 
 
-    Additionally, we implemented alpha-beta pruning in the minimax, maximize and minimize functions. 
-    The alpha variable represents the greatest score of an already explored option along the path to the root for the maximizer; 
-    conversely, the beta represents the lowest already explored option for the minimizer. 
-    By updating these values every time a node is evaluated and maintaining accurate bounds, 
-    the algorithm can skip branches of the state space tree that have no chance of changing the final minimum or maximum.
+    In our implementation, the agent performs iterative deepening until a certain cutoff deadline time is hit; 
+    it uses a priority queue data structure to keep track of all actions and their weights. Then the agent switches to Monte Carlo sampling
+    and simulates multiple potential games all the way to terminal states from the current state to get information on possible future states 
+    that were not reached using iterative deepening. The final decision on the best action to take is determined by a weighted average of the 
+    scores from both strategies; currently, the minimax scores are given a higher weighting (0.98) than Montecarlo (0.02). 
+    This approach allows the agent to balance between strategic depth and breadth.
 
-    In an ideal scenario where all of the best moves are explored first within the tree, alpha-beta pruning can reduce the complexity of the minimax algorithm 
-    from O(b^d) to O(b^(d/2)) where ‘b’ is the branching factor of the tree and ‘d’ is the depth of the tree. 
-
-    Even in a scenario that is not completely optimal, the greatly increases the efficiency of the algorithm and 
-    significantly reduces the portion of the state space tree that must be explored.  
     -->
 
 <!--=======================================================================-->
