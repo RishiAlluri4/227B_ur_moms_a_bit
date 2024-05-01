@@ -43,6 +43,7 @@
     }
 
     function start(r,rs,sc,pc) {
+        // TODO - leverage rules before game starts to optimize bot
         role = r;
         rules = rs.slice(1);
         startclock = numberize(sc);
@@ -55,6 +56,7 @@
     }
 
     function play(move) {
+        // TODO - potentially store more information across moves
         if (move!==nil) {
             state = simulate(move,state,library);
         }
@@ -89,14 +91,15 @@
             newest.enqueue(defaultActions[i], evalfunc(simulate(defaultActions[i], state, library)));
         }
         var maxDepth = 1;
+        // TODO - stop reevaluating identical game nodes between iterations with different depths
         while (true) {  // Perform iterative deepening until cutoff time is hit
-
             // Priority queue with best actions
             var topActions = playminimaxidinner(state, maxDepth, deadlineid);
 
             if (topActions===false) {  // ID deadline passed, montecarlo now
                 topActions = newest;  // Revert topActions back to last full depth explored
                 topActionsList = topActions.toList();
+                console.log("ID deadline, topActions: ", topActions, "Depth: ", maxDepth - 1)
                 var bestScore = topActionsList[0][1];
                 var bestAction = topActionsList[0][0];
                 console.log("best minimax action + score", topActionsList[0][0], topActionsList[0][1]);
@@ -136,11 +139,22 @@
         }
     }
     
-    /* This function performs iterative deepening from the provided state down to the given max depth, 
-       and returns a priority queue containing each possible action and its minimax score achieved from 
-       DFSing to the maxDepth provided. If the current time passed the provided deadlineid, the function
+    /* This function performs minimax search from the provided state down to the given max depth, 
+       and returns a priority queue containing each possible action and its minimax score achieved.
+       If the current time passed the provided deadlineid, the function
        returns false in order to indicate an incomplete search to the maxDepth given. */
     function playminimaxidinner(state, maxDepth, deadlineid) {
+        // TODO - implement move ordering based on some heuristic
+        // This basic implementation orders moves based on onestep evaluation
+        // Need to test and compare with random move ordering
+        /*
+        var actions = findlegals(state,library);
+        actions.sort((a, b) => {  
+            var scoreA = evalfunc(simulate(a, state, library));  
+            var scoreB = evalfunc(simulate(b, state, library));  
+            return scoreB - scoreA;
+        });
+        */
         var actions = shuffle(findlegals(state,library));
         var topActions = new PriorityQueue(actions.length);
         if (actions.length===0) {
@@ -172,7 +186,8 @@
         }
         return topActions;
     }
-
+    
+    // TODO - need to write this to reflect new bot strategy
     function testminimaxdepth(state, alpha, beta, maxDepth) {
         terminals = 0;
         var beg = performance.now();
@@ -227,6 +242,9 @@
         return evaluation;
     }
 
+    /* Performs montecarlo search from a given state where count is the total number of depth charges.
+       Returns expected value from a given state assuming random moves.
+    */
     function montecarlo(state, count) {
         var total = 0;
         mcsDepth = 0;
@@ -356,7 +374,7 @@
             let added = false;
 
             for (let i = 0; i < this.queue.length; i++) {
-                if (queueElement.priority > this.queue[i].priority) { // assuming lower numbers are higher priority
+                if (queueElement.priority > this.queue[i].priority) { // larger numbers are higher priority
                     this.queue.splice(i, 0, queueElement);
                     added = true;
                     break;
