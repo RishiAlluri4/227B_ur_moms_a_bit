@@ -138,14 +138,14 @@
     // Pessimistic evaluation function
     function pessimisticEval(state) {  
         if (findterminalp(state,library)) {
-            return findreward(role,state,library);
+            return findreward(role,state,library)*1;
         }
         return 0;
     }
 
     // Intermediate evaluation function
     function intermediateEval(state) {
-        return findreward(role,state,library);
+        return findreward(role,state,library)*1;
     }
 
     // Combined evaluation function that is a weighted combination of other eval functions
@@ -167,7 +167,7 @@
         }
         if (findterminalp(state,library)) {
             terminals = terminals + 1;
-            var reward = findreward(role,state,library);
+            var reward = findreward(role,state,library)*1;
             memo[stateKey] = reward;  
             return reward;
         }
@@ -176,12 +176,10 @@
         }
         var active = findcontrol(state,library);
         if (active===role) {
-            var maxScore = maximize(active, role, state, alpha, beta, maxDepth - 1);  
-            memo[stateKey] = maxScore;
+            var maxScore = maximize(active, role, state, alpha, beta, maxDepth - 1);
             return maxScore;
         }
         var minScore = minimize(active, role, state, alpha, beta, maxDepth - 1);
-        memo[stateKey] = minScore;
         return minScore;
     }
 
