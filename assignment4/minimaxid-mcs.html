@@ -233,7 +233,8 @@
     }
 
     // Combined evaluation function that is a weighted combination of other eval functions
-    // TODO can maybe add memoization for eval functions
+    // TODO - can maybe add memoization for eval functions
+    // TODO - consider opponent reward in eval func (impacts non zero-sum games e.g. connectfour)
     function evalfunc(state) {
         var pessWeight = 0;
         var intermediateWeight = 1;
