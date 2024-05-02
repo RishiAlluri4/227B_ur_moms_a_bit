@@ -5,14 +5,14 @@
 The repository for Stanford's CS227B General Game Playing class team ur_moms_a_bit. The bot is able to play a variety of games utilizing different strategies.
   
 ## Getting Started
-# Downloading the player
+### Downloading the player
     Download any bot's .html file included in the assigment folders.
-# Uploading player to gamemaster
+### Uploading player to gamemaster
     TODO
 
   
 ## Players Implemented
-# Assignment 3
+### Assignment 3
     Our player this week uses the minimax algorithm discussed in class with a few optimizations which improve runtime. 
     The minimax algorithm simulates the possible moves in a game’s tree to determine the best strategy by minimizing the potential loss. 
     It evaluates all outcomes of all legal moves while predicting possible opponent moves and creates path with the most advantageous outcome. 
@@ -35,7 +35,7 @@ The repository for Stanford's CS227B General Game Playing class team ur_moms_a_b
 
     Even in a scenario that is not completely optimal, the greatly increases the efficiency of the algorithm and 
     significantly reduces the portion of the state space tree that must be explored.  
-# Assignment 4
+### Assignment 4
     Our game-playing agent integrates two search strategies covered in last week’s lecture: iterative deepening and Monte Carlo sampling.
 
     Iterative deepening executes depth-bounded minimax searches, starting with a shallow depth limit and incrementally deepening the limit with each 
@@ -52,8 +52,6 @@ The repository for Stanford's CS227B General Game Playing class team ur_moms_a_b
     that were not reached using iterative deepening. The final decision on the best action to take is determined by a weighted average of the 
     scores from both strategies; currently, the minimax scores are given a higher weighting (0.98) than Montecarlo (0.02). 
     This approach allows the agent to balance between strategic depth and breadth.
-
-# Single Player Minimax
 
 ## Authors  
   
