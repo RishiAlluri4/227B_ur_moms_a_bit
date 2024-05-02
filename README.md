@@ -4,9 +4,11 @@
   
 The repository for Stanford's CS227B General Game Playing class team ur_moms_a_bit. The bot is able to play a variety of games utilizing different strategies.
   
-## Getting Started  
-  
-How to download and get started - TODO 
+## Getting Started
+# Downloading the player
+    Download any bot's .html file included in the assigment folders.
+# Uploading player to gamemaster
+    TODO
 
   
 ## Players Implemented
