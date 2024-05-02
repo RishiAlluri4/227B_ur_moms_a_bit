@@ -36,15 +36,16 @@ How to download and get started - TODO
 # Assignment 4
     Our game-playing agent integrates two search strategies covered in last week’s lecture: iterative deepening and Monte Carlo sampling.
 
-    Iterative deepening executes depth-first searches, starting with a shallow depth limit and incrementally deepening the limit with each 
-    iteration until a solution is found or a depth limit is reached. This method ensures that all shallower nodes are explored before 
-    moving to deeper nodes operates under the minimax assumptions that we aim to maximize our score while the opponent aims to minimize our score. 
+    Iterative deepening executes depth-bounded minimax searches, starting with a shallow depth limit and incrementally deepening the limit with each 
+    iteration until a solution is found or a depth limit is reached. When the maximum depth is reached at one iteration of iterative deepening, an evaluation
+    function is used to estimate rewards at intermediate states. This method lets us find optimal game moves at increasing game tree depths to maximize our bot's
+    performance under time constraints.
     
     On the other hand, Monte Carlo sampling runs multiple random simulations from the current state to a terminal state to estimate the most 
     probable outcomes of actions and provide insight into possible future states without exhaustively searching the entire game tree. 
 
     In our implementation, the agent performs iterative deepening until a certain cutoff deadline time is hit; 
-    it uses a priority queue data structure to keep track of all actions and their weights. Then the agent switches to Monte Carlo sampling
+    it uses a priority queue data structure to keep track of the best actions found and their minimax scores. Then the agent switches to Monte Carlo sampling
     and simulates multiple potential games all the way to terminal states from the current state to get information on possible future states 
     that were not reached using iterative deepening. The final decision on the best action to take is determined by a weighted average of the 
     scores from both strategies; currently, the minimax scores are given a higher weighting (0.98) than Montecarlo (0.02). 
