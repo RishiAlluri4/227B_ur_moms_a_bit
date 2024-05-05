@@ -1,0 +1,752 @@
+<html>
+
+<!--=======================================================================-->
+
+<head>
+  <title>ur_moms_a_bit</title>
+  <script type='text/javascript' src='/epilog/javascript/epilog.js'></script>
+  <script type='text/javascript' src='../javascript/localstorage.js'></script>
+  <script type='text/javascript' src='../interpreter/general.js'></script>
+  <script type='text/javascript'>
+    //==============================================================================
+    // Customization
+    //==============================================================================
+
+    var manager = 'manager';
+    var player = 'ur_moms_a_bit';
+
+    //==============================================================================
+    // minimaxidmcs.js
+    //==============================================================================
+
+    var role = 'robot';
+    var rules = [];
+    var startclock = 10;
+    var playclock = 10;
+
+    var library = [];
+    var roles = [];
+    var state = [];
+    // memoization
+    var memo = {};
+
+    // CONSTANTS
+    var MCS_COUNT = 10;  // 
+    var MINIMAX_WEIGHT = 0.98;
+    var MCS_WEIGHT = 1 - MINIMAX_WEIGHT;
+
+    // Greedy variables
+    var tree;
+    var nodes = 0;
+    var terminals;
+
+
+    //==============================================================================
+
+    function ping () {
+        return 'ready'
+    }
+
+    function start(r,rs,sc,pc) {
+        // TODO - leverage rules before game starts to optimize bot
+        role = r;
+        rules = rs.slice(1);
+        startclock = numberize(sc);
+        playclock = numberize(pc);
+        library = definemorerules([],rs.slice(1));
+        roles = findroles(library);
+        state = findinits(library);
+        var active = findcontrol(state,library);
+        var reward = parseInt(findreward(role,state,library));
+        memo = {};
+        console.log("New Tree: ", tree);
+        tree = makenode(state, active, reward, false);
+        console.log("New Tree: ", tree);
+        return 'ready';
+    }
+
+    function play(move) {
+        // TODO - potentially store more information across moves
+        if (move!==nil) {
+            state = simulate(move,state,library);
+        }
+        if (findcontrol(state,library)!==role) {
+            return false;
+        }
+        return playgreedy(move);
+    }
+
+    function stop(move) {
+        return false;
+    }
+
+    function abort() {
+        return false;
+    }
+
+    //==============================================================================
+    // greedy
+    //==============================================================================
+
+    function makenode(state, mover, utility, complete) {
+        console.log(state, mover, utility, complete);
+        newnode = {
+            state:state,
+            actions: [],
+            children: [],
+            mover: mover,
+            utility: utility,
+            visits: 0,
+            complete: complete
+        };
+        console.log(newnode);
+        return newnode;
+    }
+
+    function playgreedy(move) {
+        console.log("Playing with move: ", move)
+        
+        if (move !== nil) {
+            tree = subtree(move, tree);
+            console.log("Tree: ", tree);
+            state = tree.state;
+        }
+
+        nodes = 1;
+        terminals = 0;
+
+        if (findcontrol(state, library) !== role) {
+            return false;
+        }
+
+        var deadline = Date.now()+(playclock-2)*1000;
+        console.log(deadline, Date.now());
+
+        while (Date.now() < deadline && !tree.complete) {
+            process(tree);
+        }
+        console.log("calling select action");
+        move = selectaction(tree);
+
+        console.log("Nodes: " + nodes);
+        console.log("Terminals: " + terminals);
+        console.log("Utility: " + tree.utility);
+        console.log("");
+        console.log("Move: ", move);
+        return move;
+    }
+
+    function subtree(move, node) {
+        console.log("Node: ", node);
+        if (node.children.length === 0) {
+            var newstate = simulate(move,node.state,library);
+            var newmover = findcontrol(newstate,library);
+            var newscore = parseInt(findreward(role,newstate,library));
+            var newcomplete = findterminalp(newstate,library);
+            return makenode(newstate,newmover,newscore,newcomplete);
+        }
+
+        for (var i = 0; i < node.actions.length; i++) {
+            if (equalp(move, node.actions[i])) {
+                return node.children[i];
+            }
+        }
+
+        return node;
+    }
+
+    function process(node) {
+        if (node.children.length === 0) {
+            expand(node);
+        }
+        else {
+            process(selectnode(node));
+        }
+        updatenode(node);
+        return true;
+    }
+
+    function selectnode(node) {
+        var child = node.children[0];
+        var score = -1;
+        for (var i = 0; i<node.children.length; i++) {
+            var newchild = node.children[i];
+            if (newchild.complete) {
+                continue;
+            }
+            var newscore = scorenode(newchild, node);
+            if (newscore > score) {
+                child = newchild;
+                score = newscore;
+            }
+        }
+        return child;
+    }
+
+    function scorenode (node,parent) {
+        var exploitation = node.utility;
+        var exploration = Math.round((1 - node.visits/parent.visits)*100);
+        if (parent.mover===role) {
+            score = exploration + exploitation;
+        }
+        else {
+            score = exploration - exploitation;
+        }
+        return score;
+    }
+
+    function expand(node) {
+        node.actions = shuffle(findlegals(node.state,library));
+        for (var i=0; i<node.actions.length; i++) {
+            var newstate = simulate(node.actions[i],node.state,library);
+            var newmover = findcontrol(newstate,library);
+            var newscore = parseInt(findreward(role,newstate,library));
+            var newcomplete = findterminalp(newstate,library);
+            node.children[i] = makenode(newstate,newmover,newscore,newcomplete);
+            if (newcomplete) {
+                terminals++;
+            }
+            nodes++;
+        }
+        return true;
+    }
+
+    function updatenode(node) {
+        if (node.mover===role) {
+            node.utility = scoremax(node);
+            node.complete = checkmax(node);
+        }
+        else {
+            node.utility = scoremin(node);
+            node.complete = checkmin(node);
+        }
+    }
+
+    function scoremax(node) {
+        var score = node.children[0].utility;
+        for (var i=1; i<node.children.length; i++) {
+            var newscore = node.children[i].utility;
+            if (newscore>score) {
+                score = newscore;
+            }
+        }
+        return score;
+    }
+
+    function scoremin(node) {
+        var score = node.children[0].utility;
+        for (var i=1; i<node.children.length; i++) {
+            var newscore = node.children[i].utility;
+            if (newscore<score) {
+                score = newscore;
+            }
+        }
+        return score
+    }
+
+    function checkmax(node) {
+        var flag = true;
+        for (var i=0; i<node.children.length; i++) {
+            if (!node.children[i].complete) {
+                flag = false; 
+                continue;
+            }
+            if (node.children[i].utility===100) {
+                return true;
+            }
+        }
+        return flag;
+    }
+
+    function checkmin(node) {
+        var flag = true;
+        for (var i=0; i<node.children.length; i++) {
+            if (!node.children[i].complete) {
+                flag = false; 
+                continue;
+            }
+            if (node.children[i].utility===0) {
+                return true;
+            }
+        }
+        return flag;
+    }
+
+    function checkcomplete(node) {
+        for (var i = 0; i < node.children.length; i++) {
+            if (!node.children[i].complete) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function selectaction(node) {
+        var action = node.actions[0];
+        var score = -1;
+        for (var i = 0; i < node.children.length; i++) {
+            var child = node.children[i];
+            if (child.complete && child.utility===100) {
+                return node.actions[i];
+            }
+            if (child.complete && child.utility===0) {
+                continue;
+            }
+            if (child.utility > score) {
+                action = node.actions[i];
+                score = child.utility; 
+            }
+        }
+    }
+
+
+
+    //==============================================================================
+    // minimaxidmcs
+    //==============================================================================
+
+    /* This function takes as input an agent's role and returns the best possible action to take. The best action
+       is determined using a weighted average between iterative deepening scores and Monte Carlo sampling scores. */
+    function playminimaxid(role) {
+        console.log("New Move, current state: ", state);
+        var deadline = Date.now() + (playclock-1)*1000;
+        var deadlineid = Date.now() + (playclock - 3)*1000;
+         // Use default actions in case unable to minimax
+        var defaultActions = findlegals(state,library);
+        var newest = new PriorityQueue(defaultActions.length);
+        for (var i = 0; i < defaultActions.length; i++) {
+            newest.enqueue(defaultActions[i], evalfunc(simulate(defaultActions[i], state, library)));
+        }
+        var maxDepth = 1;
+        // TODO - stop reevaluating identical game nodes between iterations with different depths
+        while (true) {  // Perform iterative deepening until cutoff time is hit
+            // Priority queue with best actions
+            var topActions = playminimaxidinner(state, maxDepth, deadlineid);
+
+            if (topActions===false) {  // ID deadline passed, montecarlo now
+                topActions = newest;  // Revert topActions back to last full depth explored
+                topActionsList = topActions.toList();
+                console.log("ID deadline, topActions: ", topActions, "Depth: ", maxDepth - 1)
+                var bestScore = topActionsList[0][1];
+                var bestAction = topActionsList[0][0];
+                console.log("best minimax action + score", topActionsList[0][0], topActionsList[0][1]);
+                if (bestScore === 100) {
+                    return bestAction;
+                }
+                // Find result states achieved for every possible action
+                var actionResultStates = topActionsList.map(item => simulate(item[0], state, library));
+                var actionMcsValues = new Array(topActions.size()).fill(0);
+                var actionMcsTotals = new Array(topActions.size()).fill(0);
+                var depthCharges = 0;
+                while (Date.now() < deadline) {  // Perform montecarlo sampling until final deadline hit
+                    depthCharges += 1;
+                    for (var i = 0; i<topActions.size(); i++) {
+                        if (Date.now() > deadline) {  // If final deadline passed, break deptch charge loop and return best action
+                            break;
+                        }
+                        // Update the MCS probability each time depth charge is performed from the action
+                        actionMcsTotals[i] += depthcharge(actionResultStates[i]);
+                        actionMcsValues[i] = actionMcsTotals[i] / depthCharges;
+                        // Create weighted score based on the minimax score (from i.d.) and montecarlo sampling score
+                        weightedScore = MINIMAX_WEIGHT * topActionsList[i][1] + MCS_WEIGHT * actionMcsValues[i];
+
+                        // Update best action
+                        if (weightedScore >=  bestScore) {
+                            bestScore = weightedScore;
+                            bestAction = topActionsList[i][0];
+                        }
+                    }
+                }
+                console.log("num depth charges per action: ", depthCharges)
+                console.log("best minimaxmcs action + weighted score", bestAction, bestScore)
+                return bestAction;
+            }
+            newest = topActions;
+            maxDepth += 1;
+        }
+    }
+    
+    /* This function performs minimax search from the provided state down to the given max depth, 
+       and returns a priority queue containing each possible action and its minimax score achieved.
+       If the current time passed the provided deadlineid, the function
+       returns false in order to indicate an incomplete search to the maxDepth given. */
+    function playminimaxidinner(state, maxDepth, deadlineid) {
+        // TODO - implement move ordering based on some heuristic
+        // This basic implementation orders moves based on onestep evaluation
+        // Need to test and compare with random move ordering
+        /*
+        var actions = findlegals(state,library);
+        actions.sort((a, b) => {  
+            var scoreA = evalfunc(simulate(a, state, library));  
+            var scoreB = evalfunc(simulate(b, state, library));  
+            return scoreB - scoreA;
+        });
+        */
+        var actions = shuffle(findlegals(state,library));
+        var topActions = new PriorityQueue(actions.length);
+        if (actions.length===0) {
+            return false;
+        }
+        if (actions.length===1) {
+            return actions[0];
+        }
+        var action = actions[0];
+        var score = 0;
+
+        // Used for alpha-beta pruning within maximize and minimize functions
+        var alpha = -Infinity;  
+        var beta = Infinity;
+
+        // Simulate each possible action down to maxDepth provided using minimax assumptions
+        for (var i=0; i<actions.length; i++) {
+            var newstate = simulate(actions[i], state, library);
+            var newscore = minimaxid(newstate, alpha, beta, maxDepth, deadlineid);
+            if (newscore===false) {
+                return false;
+            }
+            if (newscore===100) {
+                topActions.enqueue(actions[i], newscore);
+                return topActions;
+            }
+            // Enqueue action and best minimax score found from starting with current action 
+            topActions.enqueue(actions[i], newscore);
+        }
+        return topActions;
+    }
+    
+    // TODO - need to write this to reflect new bot strategy
+    function testminimaxdepth(state, alpha, beta, maxDepth) {
+        terminals = 0;
+        var beg = performance.now();
+        var result = minimaxdepth(state, alpha, beta, maxDepth);
+        var end = performance.now();
+        elapsed = Math.round(end-beg);
+        console.log('Elapsed time: ' + elapsed + ' ms');
+        return result;
+    }
+
+    function mobility(state) {
+        var actions = findlegals(state,library);
+        var feasibles = findactions(library);
+        return (actions.length/feasibles.length * 100);
+    }
+
+    function focus(state) {
+        var actions = findlegals(state,library);
+        var feasibles = findactions(library);
+        return (100 - actions.length/feasibles.length * 100);
+    }
+
+    // Mobility eval function
+    function mobilityEval(state) {
+        var active = findcontrol(state,library);
+        if (active===role) {
+            return mobility(state);
+        }
+        return focus(state);
+    }
+
+    // Pessimistic evaluation function
+    function pessimisticEval(state) {  
+        if (findterminalp(state,library)) {
+            return findreward(role,state,library)*1;
+        }
+        return 0;
+    }
+
+    // Intermediate evaluation function
+    function intermediateEval(state) {
+        return findreward(role,state,library)*1;
+    }
+
+    // Combined evaluation function that is a weighted combination of other eval functions
+    // TODO - can maybe add memoization for eval functions
+    // TODO - consider opponent reward in eval func (impacts non zero-sum games e.g. connectfour)
+    function evalfunc(state) {
+        var pessWeight = 0;
+        var intermediateWeight = 1;
+        var mobilityWeight = 0;
+        var evaluation = (pessWeight * pessimisticEval(state)) + (intermediateWeight * intermediateEval(state)) + (mobilityWeight * mobilityEval(state));
+        return evaluation;
+    }
+
+    /* Performs montecarlo search from a given state where count is the total number of depth charges.
+       Returns expected value from a given state assuming random moves.
+    */
+    function montecarlo(state, count) {
+        var total = 0;
+        mcsDepth = 0;
+        for (var i = 0; i < count; i++) {
+            total += depthcharge(state);
+        }
+        return total/count;
+    }
+
+    // Returns random index between 0 and n (exclusive)
+    function randomindex(n) {
+        return Math.floor(Math.random()*n);
+    }
+
+    /* Given a state, this function performs random actions until a terminal state is reached,
+       and returns the rewards found at the terminal state */
+    function depthcharge(state) {
+        if (findterminalp(state, library)) {
+            return findreward(role,state,library)*1;
+        }
+        var actions = findlegals(state,library);
+        var best = randomindex(actions.length);
+        var newstate = simulate(actions[best],state,library);
+        return depthcharge(newstate);
+    }
+
+    /* Given a state and maxDepth, performs minimax evaluation on the state until the maxDepth is reached.
+       Calls maximize if the turn belongs to the agent or minimize if the turn belongs to the opponent. 
+       If deadline is reached, returns flase to indicate incomplete depth first search. */
+    function minimaxid(state, alpha, beta, maxDepth, deadlineid) {
+        var stateKey = JSON.stringify(state);
+        if (stateKey in memo) {
+            return memo[stateKey];
+        }
+        if (findterminalp(state,library)) {
+            var reward = findreward(role,state,library)*1;
+            memo[stateKey] = reward;  
+            return reward;
+        }
+        if (maxDepth <= 0) {
+            return evalfunc(state);
+        }
+        // Return if time is up
+        if (Date.now()>deadlineid) {
+            return false;
+        }
+        var active = findcontrol(state,library);
+        if (active===role) {
+            var maxScore = maximize(active, state, alpha, beta, maxDepth - 1, deadlineid);  
+            return maxScore;
+        }
+        var minScore = minimize(active, state, alpha, beta, maxDepth - 1, deadlineid);
+        return minScore;
+    }
+
+    /* This function returns maximum score minimax score that can be achieved from all possible actions at the 
+       current state */
+    function maximize(active, state, alpha, beta, maxDepth, deadlineid) {
+        var actions = findlegals(state,library);
+        if (actions.length===0) {
+            return 0;
+        }
+        var score = 0;
+        for (var i=0; i<actions.length; i++) {
+            var newstate = simulate(actions[i],state,library);
+            var newscore = minimaxid(newstate, alpha, beta, maxDepth, deadlineid);
+            if (newscore===false) {
+                return false;
+            }
+            score = Math.max(score, newscore); 
+            if (score===100) {
+                return 100;
+            }
+            alpha = Math.max(alpha, score);
+            if (beta <= alpha) {
+                break;
+            }
+        }
+        return score;
+    }
+
+    /* This function returns minimum score minimax score that can be achieved from all possible actions at the 
+       current state */
+    function minimize(active, state, alpha, beta, maxDepth, deadlineid) {
+        var actions = findlegals(state,library);
+        if (actions.length===0) {
+            return 0;
+        }
+        var score = 100;
+        for (var i=0; i<actions.length; i++) {
+            var newstate = simulate(actions[i],state,library);
+            var newscore = minimaxid(newstate, alpha, beta, maxDepth, deadlineid);
+            if (newscore===false) {
+                return false;
+            }
+            score = Math.min(score, newscore);
+            if (score===0) {
+                return 0;
+            }
+            beta = Math.min(beta, score);
+            if (beta <= alpha) {
+                break;
+            }
+        }
+        return score;
+    }
+
+    function shuffle(array) {
+        for (var i = array.length-1; i>0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var temp = array[i];
+            array[i] = array[j];
+            array[j] = temp;
+        }
+        return array;
+    }
+
+    class PriorityQueue {
+        constructor(maxSize = 10) { // Default max size is 10, but can be any value
+            this.maxSize = maxSize;
+            this.queue = [];
+        }
+
+        // Function to add an element to the queue with a priority
+        enqueue(element, priority) {
+            const queueElement = { element, priority };
+            let added = false;
+
+            for (let i = 0; i < this.queue.length; i++) {
+                if (queueElement.priority > this.queue[i].priority) { // larger numbers are higher priority
+                    this.queue.splice(i, 0, queueElement);
+                    added = true;
+                    break;
+                }
+            }
+
+            if (!added) {
+                this.queue.push(queueElement);
+            }
+
+            if (this.queue.length > this.maxSize) {
+                this.queue.pop();
+            }
+        }
+
+        // Function to remove the element from the queue
+        dequeue() {
+            if (this.isEmpty()) {
+                console.log("Queue is empty");
+                return undefined;
+            }
+            return this.queue.shift().element;
+        }
+
+        // Function to check if the queue is empty
+        isEmpty() {
+            return this.queue.length === 0;
+        }
+
+        // Function to get the front element of the queue
+        front() {
+            if (this.isEmpty()) {
+                console.log("Queue is empty");
+                return undefined;
+            }
+            return this.queue[0].element;
+        }
+
+        // Function to get the size of the queue
+        size() {
+            return this.queue.length;
+        }
+
+        // Function to print the queue contents
+        printQueue() {
+            for (const item of this.queue) {
+                console.log(`${item.element} - Priority: ${item.priority}`);
+            }
+        }
+
+        toList() {
+            return this.queue.map(item => [item.element, item.priority]);
+        }
+    }   
+
+
+    //==============================================================================
+    // End of player code
+    //==============================================================================
+  </script>
+</head>
+<!--
+    Our game-playing agent integrates two search strategies covered in last week’s lecture: iterative deepening and Monte Carlo sampling.
+
+    Iterative deepening executes depth-first searches, starting with a shallow depth limit and incrementally deepening the limit with each 
+    iteration until a solution is found or a depth limit is reached. This method ensures that all shallower nodes are explored before 
+    moving to deeper nodes operates under the minimax assumptions that we aim to maximize our score while the opponent aims to minimize our score. 
+    
+    On the other hand, Monte Carlo sampling runs multiple random simulations from the current state to a terminal state to estimate the most 
+    probable outcomes of actions and provide insight into possible future states without exhaustively searching the entire game tree. 
+
+    In our implementation, the agent performs iterative deepening until a certain cutoff deadline time is hit; 
+    it uses a priority queue data structure to keep track of all actions and their weights. Then the agent switches to Monte Carlo sampling
+    and simulates multiple potential games all the way to terminal states from the current state to get information on possible future states 
+    that were not reached using iterative deepening. The final decision on the best action to take is determined by a weighted average of the 
+    scores from both strategies; currently, the minimax scores are given a higher weighting (0.98) than Montecarlo (0.02). 
+    This approach allows the agent to balance between strategic depth and breadth.
+
+    -->
+
+<!--=======================================================================-->
+
+<body bgcolor='#000000' onload='doinitialize()'>
+    <center>
+      <table width='720' cellspacing='0' cellpadding='40' bgcolor='#ffffff'>
+        <tr>
+          <td>
+  
+  <!--=======================================================================-->
+  
+  <center>
+    <table width='640' cellpadding='0'>
+      <tr>
+        <td width='180' align='center' valign='center'>
+          <img width='130' src='http://gamemaster.stanford.edu/images/ggp.jpg'/>
+        </td>
+        <td align='center'>
+          <span style='font-size:18pt'>&nbsp;</span>
+          <span style='font-size:28pt'>Ur Moms A Bit</span><br/>
+          <span style='font-size:22pt'>&#x1F449; &#x1F469; &#x1F170; &#x1F479;</span>
+        </td>
+        <td width='180' align='center' style='color:#000066;font-size:18px'>
+          <i>General<br/>Game<br/>Playing</i>
+        </td>
+      </tr>
+    </table>
+  </center>
+
+<!--=======================================================================-->
+
+<br/>
+<table width='640' cellpadding='8' cellspacing='0' bgcolor='#f4f8f8' border='1'>
+  <tr height='40'>
+     <td align='center'>
+<table style='color:#000066;font-size:18px'>
+  <tr>
+    <td>
+Protocol: localstorage<br/>
+Metagamer: none<br/>
+Strategy: greedy<br/>
+Identifier: <span id='player'>ur_moms_a_bit</span> <img src="http://gamemaster.stanford.edu/images/pencil.gif" onclick='doplayer()'/>
+    </td>
+  </tr>
+</table>
+    </td>
+  </tr>
+</table>
+<br/>
+
+<!--=======================================================================-->
+
+<center>
+  <br/>
+  <textarea id='transcript' style='font-family:courier' rows='30' cols='80' readonly></textarea>
+</center>
+
+<!--=======================================================================-->
+
+        </td>
+      </tr>
+    </table>
+  </center>
+</body>
+
+<!--=======================================================================-->
+
+</html>
