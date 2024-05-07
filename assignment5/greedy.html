@@ -155,6 +155,31 @@
         return true;
     }
 
+    
+    function selectnodeUCB(node) {
+        var bestChild = null;
+        var bestUCB = -Infinity;
+        const C = 1.41; // Commonly used value for C, can be tuned
+
+        for (let i = 0; i < node.children.length; i++) {
+            var child = node.children[i];
+            if (child.visits === 0) {
+                return child; // Prioritize unexplored children
+            }
+            var exploitation = child.utility / child.visits;
+            var exploration = Math.sqrt(Math.log(node.visits) / child.visits);
+            var ucb = exploitation + C * exploration;
+
+            if (ucb > bestUCB) {
+                bestUCB = ucb;
+                bestChild = child;
+            }
+        }
+
+        return bestChild;
+    }
+    
+
     function selectnode(node) {
         var child = node.children[0];
         var score = -1;
