@@ -78,6 +78,27 @@
     // greedy
     //==============================================================================
 
+    function maxmineval(state, opponentRole) {  
+        // For some reason, state never seems to be terminal so this doesnt really work.
+        const playerReward = findreward(role,state,library);  
+        const opponentReward = findreward(opponentRole,state,library);
+        console.log(state, findterminalp(state,library), role, opponentRole, playerReward, opponentReward);
+        const difference = playerReward - opponentReward;
+      
+        let diffmin = -100;  
+        let diffmax = 100;  
+        let scaledmin = 0;  
+        let scaledmax = 100;  
+        
+        let diffrange = diffmax - diffmin;  
+        let scaledrange = scaledmax - scaledmin;
+        var val = (((difference - diffmin) * scaledrange) / diffrange) + scaledmin;
+        if (difference !== 0) {
+            console.log("maxmineval: ", val, difference, state);
+        }  
+        return val;
+    }
+
     function makenode(state, mover, utility, complete) {
         newnode = {
             state:state,
@@ -106,14 +127,14 @@
             return false;
         }
 
-        var deadline = Date.now()+Math.floor(playclock/2)*1000;
+        var greedydeadline = Date.now()+Math.floor(playclock * 0.75)*1000;
+        var mctsdeadline = Date.now()+Math.floor(playclock * 0.95)*1000;
 
-        while (Date.now() < deadline && !tree.complete) {
+        while (Date.now() < greedydeadline && !tree.complete) {
             process(tree);
         }
         console.log("Post processing tree:", tree);
-        deadline = deadline+(playclock/2-2)*1000;
-        while (Date.now() < deadline && !tree.complete) {
+        while (Date.now() < mctsdeadline && !tree.complete) {
             explore(tree);
         }
         console.log("Post exploring tree:", tree);
@@ -152,6 +173,7 @@
             expand(node);
         }
         else {
+            // Select node sucks
             process(selectnode(node));
         }
         updatenode(node);
@@ -219,6 +241,10 @@
             var newmover = findcontrol(newstate,library);
             var newscore = parseInt(findreward(role,newstate,library));
             var newcomplete = findterminalp(newstate,library);
+            if (!newcomplete) {
+                var opprole = roles.filter(element => element !== role)[0];
+                newscore = maxmineval(newstate, opprole);
+            }
             node.children[i] = makenode(newstate,newmover,newscore,newcomplete);
             if (newcomplete) {
                 terminals++;
@@ -338,8 +364,9 @@
         var utility = node.utility;
         var probes = node.probes;
         var score = depthcharge(node.state);
-
+        console.log("Utility: ", utility, node.state);
         node.utility = Math.round((utility*probes+score)/(probes+1));
+        console.log("Utility: ", node.utility);
         node.probes = node.probes + 1;
         depthcharges++;
         console.log("Sampling finished: Probes: " + node.probes + "score: " + score + "newUtility: " + node.utility);
