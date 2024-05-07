@@ -36,9 +36,9 @@
     var MCS_WEIGHT = 1 - MINIMAX_WEIGHT;
 
     // Greedy variables
-    var tree;
+    var tree = {};
     var nodes = 0;
-    var terminals;
+    var terminals = 0;
 
 
     //==============================================================================
@@ -50,29 +50,18 @@
     function start(r,rs,sc,pc) {
         // TODO - leverage rules before game starts to optimize bot
         role = r;
-        rules = rs.slice(1);
-        startclock = numberize(sc);
-        playclock = numberize(pc);
         library = definemorerules([],rs.slice(1));
         roles = findroles(library);
         state = findinits(library);
+        startclock = numberize(sc);
+        playclock = numberize(pc);
         var active = findcontrol(state,library);
         var reward = parseInt(findreward(role,state,library));
-        memo = {};
-        console.log("New Tree: ", tree);
-        tree = makenode(state, active, reward, false);
-        console.log("New Tree: ", tree);
+        tree = makenode(state,active,reward,false);
         return 'ready';
     }
 
     function play(move) {
-        // TODO - potentially store more information across moves
-        if (move!==nil) {
-            state = simulate(move,state,library);
-        }
-        if (findcontrol(state,library)!==role) {
-            return false;
-        }
         return playgreedy(move);
     }
 
@@ -190,7 +179,7 @@
             score = exploration + exploitation;
         }
         else {
-            score = exploration - exploitation;
+            score = exploration;
         }
         return score;
     }
@@ -220,6 +209,8 @@
             node.utility = scoremin(node);
             node.complete = checkmin(node);
         }
+        node.visits++;
+        return true;
     }
 
     function scoremax(node) {
@@ -297,6 +288,7 @@
                 score = child.utility; 
             }
         }
+        return action;
     }
 
 
