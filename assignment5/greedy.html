@@ -39,6 +39,7 @@
     var tree = {};
     var nodes = 0;
     var terminals = 0;
+    var depthcharges = 0;
 
 
     //==============================================================================
@@ -78,7 +79,6 @@
     //==============================================================================
 
     function makenode(state, mover, utility, complete) {
-        console.log(state, mover, utility, complete);
         newnode = {
             state:state,
             actions: [],
@@ -86,39 +86,42 @@
             mover: mover,
             utility: utility,
             visits: 0,
+            probes:0,
             complete: complete
         };
-        console.log(newnode);
         return newnode;
     }
 
-    function playgreedy(move) {
-        console.log("Playing with move: ", move)
-        
+    function playgreedy(move) {        
         if (move !== nil) {
             tree = subtree(move, tree);
-            console.log("Tree: ", tree);
             state = tree.state;
         }
 
         nodes = 1;
         terminals = 0;
+        depthcharges = 0;
 
         if (findcontrol(state, library) !== role) {
             return false;
         }
 
-        var deadline = Date.now()+(playclock-2)*1000;
-        console.log(deadline, Date.now());
+        var deadline = Date.now()+Math.floor(playclock/2)*1000;
 
         while (Date.now() < deadline && !tree.complete) {
             process(tree);
         }
-        console.log("calling select action");
+        console.log("Post processing tree:", tree);
+        deadline = deadline+(playclock/2-2)*1000;
+        while (Date.now() < deadline && !tree.complete) {
+            explore(tree);
+        }
+        console.log("Post exploring tree:", tree);
         move = selectaction(tree);
 
         console.log("Nodes: " + nodes);
         console.log("Terminals: " + terminals);
+        console.log("Deptchcharges: ", depthcharges);
         console.log("Utility: " + tree.utility);
         console.log("");
         console.log("Move: ", move);
@@ -316,11 +319,37 @@
         return action;
     }
 
+    //==============================================================================
+    // exploooooooore
+    //==============================================================================
+
+    function explore(node) {
+        if (node.children.length===0) {
+            return sample(node);
+        }
+        else {
+            explore(selectnode(node));
+        }
+        updatenode(node);
+        return true;
+    }
+
+    function sample(node) {
+        var utility = node.utility;
+        var probes = node.probes;
+        var score = depthcharge(node.state);
+
+        node.utility = Math.round((utility*probes+score)/(probes+1));
+        node.probes = node.probes + 1;
+        depthcharges++;
+        console.log("Sampling finished: Probes: " + node.probes + "score: " + score + "newUtility: " + node.utility);
+        return true;
+    }
 
 
-    //==============================================================================
-    // minimaxidmcs
-    //==============================================================================
+
+
+    
 
     /* This function takes as input an agent's role and returns the best possible action to take. The best action
        is determined using a weighted average between iterative deepening scores and Monte Carlo sampling scores. */
