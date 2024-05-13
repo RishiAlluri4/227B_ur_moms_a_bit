@@ -7,6 +7,9 @@
   <script type='text/javascript' src='/epilog/javascript/epilog.js'></script>
   <script type='text/javascript' src='../javascript/localstorage.js'></script>
   <script type='text/javascript' src='../interpreter/general.js'></script>
+  <script src='http://gamemaster.stanford.edu/metagaming/optimizer.js'></script>
+  <script src='http://gamemaster.stanford.edu/metagaming/materializer.js'></script>
+  <script src='http://gamemaster.stanford.edu/metagaming/simplifier.js'></script>
   <script type='text/javascript'>
     //==============================================================================
     // Customization
@@ -56,9 +59,18 @@
         state = findinits(library);
         startclock = numberize(sc);
         playclock = numberize(pc);
+        rules = prunerulesubgoals(rules);  // reorder, prune rules and subgoals
+        rules = prunerules(rules);
+        rules = fixrules(rules);
+        rules = materializestaticrelations(rules);  // precomputes and saves results - has tradeoffs
+        rules = simplifyrules(rules);  // eliminate true subgoals and eliminate rules with false subgoals
         var active = findcontrol(state,library);
         var reward = parseInt(findreward(role,state,library));
         tree = makenode(state,active,reward,false);
+        var headStartDeadline = Date.now() + startclock * 1000;  // head start search
+        while (Date.now() < headStartDeadline && !tree.complete) {
+            process(tree);
+        }
         return 'ready';
     }
 

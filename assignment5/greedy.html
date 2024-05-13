@@ -80,10 +80,19 @@
 
     function maxmineval(state, opponentRole) {  
         // For some reason, state never seems to be terminal so this doesnt really work.
-        const playerReward = findreward(role,state,library);  
-        const opponentReward = findreward(opponentRole, state,library);
-        // console.log(state, findterminalp(state,library), role, opponentRole, playerReward, opponentReward);
+        // Log the state and roles involved to see the starting point of the calculation
+        console.log("maxmineval called with state:", JSON.stringify(state), "Player Role:", role, "Opponent Role:", opponentRole);
+
+        // Calculate the rewards for both the player and the opponent
+        const playerReward = findreward(role, state, library);  
+        const opponentReward = findreward(opponentRole, state, library);
+
+        // Log the rewards obtained to check correctness
+        console.log("Player Reward:", playerReward, "Opponent Reward:", opponentReward);
+
+        // Calculate the difference in rewards
         const difference = playerReward - opponentReward;
+        console.log("Reward Difference:", difference);
       
         let diffmin = -100;
         let diffmax = 100;  
@@ -127,7 +136,7 @@
             return false;
         }
 
-        var greedydeadline = Date.now()+Math.floor(playclock * 0.9)*1000;
+        var greedydeadline = Date.now()+Math.floor(playclock * 0.85)*1000;
         var mctsdeadline = Date.now()+Math.floor(playclock * 0.95)*1000;
 
         while (Date.now() < greedydeadline && !tree.complete) {
@@ -239,10 +248,10 @@
         for (var i=0; i<node.actions.length; i++) {
             var newstate = simulate(node.actions[i],node.state,library);
             var newmover = findcontrol(newstate,library);
-            // var newscore = parseInt(findreward(role,newstate,library));
+            var newscore = parseInt(findreward(role,newstate,library));
             var newcomplete = findterminalp(newstate,library);
             var opprole = roles.filter(element => element !== role)[0];
-            var newscore = maxmineval(newstate, opprole);
+            //var newscore = maxmineval(newstate, opprole);
             if (findterminalp(newstate,library) && (0 < newscore < 100)) {
                 console.log("expand with eval", node.actions[i], newscore, findterminalp(newstate,library));
             }
@@ -566,9 +575,9 @@
        and returns the rewards found at the terminal state */
     function depthcharge(state) {
         if (findterminalp(state, library)) {
-            // return findreward(role,state,library)*1;
-            var opprole = roles.filter(element => element !== role)[0];
-            return maxmineval(state, opprole);
+            return findreward(role,state,library)*1;
+            // var opprole = roles.filter(element => element !== role)[0];
+            // return maxmineval(state, opprole);
         }
         var actions = findlegals(state,library);
         var best = randomindex(actions.length);
