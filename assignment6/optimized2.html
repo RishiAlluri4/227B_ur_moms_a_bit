@@ -69,7 +69,7 @@
         tree = makenode(state,active,reward,false);
         var headStartDeadline = Date.now() + startclock * 1000;  // head start search
         while (Date.now() < headStartDeadline && !tree.complete) {
-            process(tree);
+            process(tree, headStartDeadline);
         }
         return 'ready';
     }
@@ -152,7 +152,7 @@
 
 
         while (Date.now() < deadline && !tree.complete) {
-            process(tree);
+            process(tree, deadline);
         }
         
         console.log("Post processing tree:", tree);
@@ -186,14 +186,14 @@
         return node;
     }
 
-    function process(node) {
+    function process(node, deadline) {
         if (node.children.length === 0) {
             expand(node);
         }
         else {
-            process(selectnode(node));
+            process(selectnode(node), deadline);
         }
-        explore(node);
+        explore(node, deadline);
         updatenode(node);
         return true;
     }
@@ -369,35 +369,31 @@
     // exploooooooore
     //==============================================================================
 
-    function explore(node) {
+    function explore(node, deadline) {
         if (node.children.length===0) {
             return sample(node);
         }
         else {
-            explore(selectnode(node));
+            for (var i = 0; i < node.children.length; i++) {
+                if (Date.now() > deadline) {
+                    continue;
+                }
+                sample(node.children[i]);
+            }
         }
-        //updatenode(node);
         return true;
     }
 
     function sample(node) {
-        console.log("sampling");
         var utility = node.utility;
         var probes = node.probes;
         var score = depthcharge(node.state);
-        console.log("Utility: ", utility, node.state);
         node.utility = Math.round((utility*probes+score)/(probes+1));
-        console.log("Utility: ", node.utility);
         node.probes = node.probes + 1;
         depthcharges++;
-        console.log("Sampling finished: Probes: " + node.probes + "score: " + score + "newUtility: " + node.utility);
         return true;
     }
 
-
-
-
-    
 
     /* This function takes as input an agent's role and returns the best possible action to take. The best action
        is determined using a weighted average between iterative deepening scores and Monte Carlo sampling scores. */
