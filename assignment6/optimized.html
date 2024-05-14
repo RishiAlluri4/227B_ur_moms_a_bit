@@ -148,8 +148,8 @@
             return false;
         }
 
-        var greedydeadline = Date.now()+Math.floor(playclock * 0.9)*1000;
-        var mctsdeadline = Date.now()+Math.floor(playclock * 0.95)*1000;
+        var greedydeadline = Date.now()+Math.floor(playclock * 0.6)*1000;
+        var mctsdeadline = Date.now()+Math.floor(playclock * 0.98)*1000;
 
         while (Date.now() < greedydeadline && !tree.complete) {
             process(tree);
@@ -213,16 +213,16 @@
                 return child; // Prioritize unexplored children
             }
             var exploitation = child.utility / child.visits;
-            var exploration = Math.sqrt(Math.log(node.visits) / child.visits);
+            var exploration = (node.visits > 0) ? Math.sqrt(Math.log(node.visits) / child.visits) : 0;
             var ucb = exploitation + C * exploration;
 
             if (ucb > bestUCB) {
                 bestUCB = ucb;
                 bestChild = child;
+            } else if (ucb === bestUCB) {
+                candidates.push(child);
             }
         }
-
-        return bestChild;
     }
     
 
