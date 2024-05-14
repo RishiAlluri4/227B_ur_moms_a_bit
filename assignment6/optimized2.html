@@ -148,18 +148,14 @@
             return false;
         }
 
-        var greedydeadline = Date.now()+Math.floor(playclock * 0.5)*1000;
-        var mctsdeadline = Date.now()+Math.floor(playclock * 0.98)*1000;
+        var deadline = Date.now()+Math.floor(playclock * 0.98)*1000;
 
 
-        while (Date.now() < greedydeadline && !tree.complete) {
+        while (Date.now() < deadline && !tree.complete) {
             process(tree);
         }
+        
         console.log("Post processing tree:", tree);
-        while (Date.now() < mctsdeadline && !tree.complete) {
-            explore(tree);
-        }
-        console.log("Post exploring tree:", tree);
         move = selectaction(tree);
 
         console.log("Nodes: " + nodes);
@@ -197,6 +193,7 @@
         else {
             process(selectnode(node));
         }
+        explore(node);
         updatenode(node);
         return true;
     }
@@ -379,7 +376,7 @@
         else {
             explore(selectnode(node));
         }
-        updatenode(node);
+        //updatenode(node);
         return true;
     }
 
