@@ -191,7 +191,7 @@
             expand(node);
         }
         else {
-            process(selectnode(node), deadline);
+            process(selectnodeUCB(node), deadline);
         }
         explore(node, deadline);
         updatenode(node);
@@ -200,27 +200,34 @@
 
     
     function selectnodeUCB(node) {
+        if (node.children.length === 0) {
+            console.error("No children to select from.");
+            return null;  // Handle no children case.
+        }
+
         var bestChild = null;
         var bestUCB = -Infinity;
-        const C = 1.41; // Commonly used value for C, can be tuned
+        const C = 1.41;  // UCB exploration constant, tune as needed.
 
         for (let i = 0; i < node.children.length; i++) {
             var child = node.children[i];
             if (child.visits === 0) {
-                return child; // Prioritize unexplored children
+                return child; // If a child has not been visited, prioritize exploring it.
             }
-            var exploitation = child.utility / child.visits;
-            var exploration = Math.sqrt(Math.log(node.visits) / child.visits);
-            var ucb = exploitation + C * exploration;
+
+            var exploitation = child.utility / child.visits; // Average utility of the node.
+            var exploration = Math.sqrt(Math.log(node.visits) / child.visits); // UCB exploration term.
+            var ucb = exploitation + C * exploration; // UCB calculation.
 
             if (ucb > bestUCB) {
+                console.log("curr UCB", ucb, "bestUCB", bestUCB);
                 bestUCB = ucb;
                 bestChild = child;
             }
         }
-
-        return bestChild;
+        return bestChild; // Return the child with the highest UCB value.
     }
+
     
 
     function selectnode(node) {
