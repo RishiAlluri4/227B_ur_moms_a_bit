@@ -93,18 +93,18 @@
     function maxmineval(state, opponentRole) {  
         // For some reason, state never seems to be terminal so this doesnt really work.
         // Log the state and roles involved to see the starting point of the calculation
-        console.log("maxmineval called with state:", JSON.stringify(state), "Player Role:", role, "Opponent Role:", opponentRole);
+        // console.log("maxmineval called with state:", JSON.stringify(state), "Player Role:", role, "Opponent Role:", opponentRole);
 
         // Calculate the rewards for both the player and the opponent
         const playerReward = findreward(role, state, library);  
         const opponentReward = findreward(opponentRole, state, library);
 
         // Log the rewards obtained to check correctness
-        console.log("Player Reward:", playerReward, "Opponent Reward:", opponentReward);
+        // console.log("Player Reward:", playerReward, "Opponent Reward:", opponentReward);
 
         // Calculate the difference in rewards
         const difference = playerReward - opponentReward;
-        console.log("Reward Difference:", difference);
+        // console.log("Reward Difference:", difference);
       
         let diffmin = -100;
         let diffmax = 100;  
@@ -115,9 +115,16 @@
         let scaledrange = scaledmax - scaledmin;
         var val = (((difference - diffmin) * scaledrange) / diffrange) + scaledmin;
         if (difference !== 0) {
-            console.log("maxmineval: ", val, difference, state);
+            // console.log("maxmineval: ", val, difference, state);
         }  
         return val;
+    }
+
+    function evalfunc(state, opponentRole) {
+        var intermediateWeight = 0.95;
+        var mobilityWeight = 0.05;
+        var evaluation = (intermediateWeight * maxmineval(state, opponentRole)) + (mobilityWeight * mobilityEval(state));
+        return evaluation;
     }
 
     function makenode(state, mover, utility, complete) {
@@ -128,7 +135,7 @@
             mover: mover,
             utility: utility,
             visits: 0,
-            probes:3,  // giving a bit more emphasis to intermediate utility
+            probes:6,  // giving a bit more emphasis to intermediate utility
             complete: complete
         };
         return newnode;
@@ -148,27 +155,27 @@
             return false;
         }
 
-        var deadline = Date.now()+Math.floor(playclock * 0.98)*1000;
+        var deadline = Date.now()+Math.floor(playclock * 0.9)*1000;
 
 
         while (Date.now() < deadline && !tree.complete) {
             process(tree, deadline);
         }
         
-        console.log("Post processing tree:", tree);
+        // console.log("Post processing tree:", tree);
         move = selectaction(tree);
 
-        console.log("Nodes: " + nodes);
-        console.log("Terminals: " + terminals);
-        console.log("Deptchcharges: ", depthcharges);
-        console.log("Utility: " + tree.utility);
-        console.log("");
-        console.log("Move: ", move);
+        // console.log("Nodes: " + nodes);
+        // console.log("Terminals: " + terminals);
+        // console.log("Deptchcharges: ", depthcharges);
+        // console.log("Utility: " + tree.utility);
+        // console.log("");
+        // console.log("Move: ", move);
         return move;
     }
 
     function subtree(move, node) {
-        console.log("Node: ", node);
+        // console.log("Node: ", node);
         if (node.children.length === 0) {
             var newstate = simulate(move,node.state,library);
             var newmover = findcontrol(newstate,library);
@@ -260,9 +267,9 @@
             var newscore = parseInt(findreward(role,newstate,library));
             var newcomplete = findterminalp(newstate,library);
             var opprole = roles.filter(element => element !== role)[0];
-            //var newscore = maxmineval(newstate, opprole);
+            var newscore = evalfunc(newstate, opprole);
             if (findterminalp(newstate,library) && (0 < newscore < 100)) {
-                console.log("expand with eval", node.actions[i], newscore, findterminalp(newstate,library));
+                // console.log("expand with eval", node.actions[i], newscore, findterminalp(newstate,library));
             }
             node.children[i] = makenode(newstate,newmover,newscore,newcomplete);
             if (newcomplete) {
@@ -350,7 +357,7 @@
         var score = -1;
         for (var i = 0; i < node.children.length; i++) {
             var child = node.children[i];
-            console.log(child.state, child.utility, child.complete);
+            // console.log(child.state, child.utility, child.complete);
             if (child.complete && child.utility===100) {
                 return node.actions[i];
             }
@@ -552,6 +559,7 @@
     // Combined evaluation function that is a weighted combination of other eval functions
     // TODO - can maybe add memoization for eval functions
     // TODO - consider opponent reward in eval func (impacts non zero-sum games e.g. connectfour)
+    /* 
     function evalfunc(state) {
         var pessWeight = 0;
         var intermediateWeight = 1;
@@ -559,6 +567,7 @@
         var evaluation = (pessWeight * pessimisticEval(state)) + (intermediateWeight * intermediateEval(state)) + (mobilityWeight * mobilityEval(state));
         return evaluation;
     }
+    */
 
     /* Performs montecarlo search from a given state where count is the total number of depth charges.
        Returns expected value from a given state assuming random moves.
@@ -582,8 +591,8 @@
     function depthcharge(state) {
         if (findterminalp(state, library)) {
             return findreward(role,state,library)*1;
-            // var opprole = roles.filter(element => element !== role)[0];
-            // return maxmineval(state, opprole);
+            var opprole = roles.filter(element => element !== role)[0];
+            return evalfunc(state, opprole);
         }
         var actions = findlegals(state,library);
         var best = randomindex(actions.length);
