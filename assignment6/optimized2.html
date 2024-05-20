@@ -1,0 +1,591 @@
+<html>
+
+<!--=======================================================================-->
+
+<head>
+  <title>ur_moms_a_bit</title>
+  <script type='text/javascript' src='/epilog/javascript/epilog.js'></script>
+  <script type='text/javascript' src='../javascript/localstorage.js'></script>
+  <script src='http://gamemaster.stanford.edu/metagaming/optimizer.js'></script>
+  <script src='http://gamemaster.stanford.edu/metagaming/materializer.js'></script>
+  <script src='http://gamemaster.stanford.edu/metagaming/simplifier.js'></script>
+  <script type='text/javascript' src='../interpreter/general.js'></script>
+  <script type='text/javascript'>
+    //==============================================================================
+    // Customization
+    //==============================================================================
+
+    var manager = 'manager';
+    var player = 'ur_moms_a_bit';
+
+    //==============================================================================
+    // minimaxidmcs.js
+    //==============================================================================
+
+    var role = 'robot';
+    var rules = [];
+    var startclock = 10;
+    var playclock = 10;
+
+    var library = [];
+    var roles = [];
+    var state = [];
+    // memoization
+    var memo = {};
+
+    // CONSTANTS
+    var MCS_COUNT = 10;  // 
+    var MINIMAX_WEIGHT = 0.98;
+    var MCS_WEIGHT = 1 - MINIMAX_WEIGHT;
+
+    // Greedy variables
+    var tree = {};
+    var nodes = 0;
+    var terminals = 0;
+    var depthcharges = 0;
+
+
+    //==============================================================================
+
+    function ping () {
+        return 'ready'
+    }
+
+    function start(r,rs,sc,pc) {
+        // TODO - leverage rules before game starts to optimize bot
+        role = r;
+        library = definemorerules([],rs.slice(1));
+        roles = findroles(library);
+        state = findinits(library);
+        startclock = numberize(sc);
+        playclock = numberize(pc);
+        rules = prunerulesubgoals(rules);  // reorder, prune rules and subgoals
+        rules = prunerules(rules);
+        rules = fixrules(rules);
+        rules = materializestaticrelations(rules);  // precomputes and saves results - has tradeoffs
+        rules = simplifyrules(rules);  // eliminate true subgoals and eliminate rules with false subgoals
+        var active = findcontrol(state,library);
+        var reward = parseInt(findreward(role,state,library));
+        tree = makenode(state,active,reward,false);
+        var headStartDeadline = Date.now() + startclock * 1000;  // head start search
+        while (Date.now() < headStartDeadline && !tree.complete) {
+            process(tree, headStartDeadline);
+        }
+        return 'ready';
+    }
+
+    function play(move) {
+        return playgreedy(move);
+    }
+
+    function stop(move) {
+        return false;
+    }
+
+    function abort() {
+        return false;
+    }
+
+    //==============================================================================
+    // greedy
+    //==============================================================================
+
+    function maxmineval(state, opponentRole) {  
+        // For some reason, state never seems to be terminal so this doesnt really work.
+        // Log the state and roles involved to see the starting point of the calculation
+        // console.log("maxmineval called with state:", JSON.stringify(state), "Player Role:", role, "Opponent Role:", opponentRole);
+
+        // Calculate the rewards for both the player and the opponent
+        const playerReward = findreward(role, state, library);  
+        const opponentReward = findreward(opponentRole, state, library);
+
+        // Log the rewards obtained to check correctness
+        // console.log("Player Reward:", playerReward, "Opponent Reward:", opponentReward);
+
+        // Calculate the difference in rewards
+        const difference = playerReward - opponentReward;
+        // console.log("Reward Difference:", difference);
+      
+        let diffmin = -100;
+        let diffmax = 100;  
+        let scaledmin = 0;  
+        let scaledmax = 100;  
+        
+        let diffrange = diffmax - diffmin;  
+        let scaledrange = scaledmax - scaledmin;
+        var val = (((difference - diffmin) * scaledrange) / diffrange) + scaledmin;
+        if (difference !== 0) {
+            // console.log("maxmineval: ", val, difference, state);
+        }  
+        return val;
+    }
+
+    function evalfunc(state, opponentRole) {
+        var intermediateWeight = 0.95;
+        var mobilityWeight = 0.05;
+        var evaluation = (intermediateWeight * maxmineval(state, opponentRole)) + (mobilityWeight * mobilityEval(state));
+        return evaluation;
+    }
+
+    function makenode(state, mover, utility, complete) {
+        newnode = {
+            state:state,
+            actions: [],
+            children: [],
+            mover: mover,
+            utility: utility,
+            visits: 0,
+            probes:6,  // giving a bit more emphasis to intermediate utility
+            complete: complete
+        };
+        return newnode;
+    }
+
+    function playgreedy(move) {        
+        if (move !== nil) {
+            tree = subtree(move, tree);
+            state = tree.state;
+        }
+
+        nodes = 1;
+        terminals = 0;
+        depthcharges = 0;
+
+        if (findcontrol(state, library) !== role) {
+            return false;
+        }
+
+        var deadline = Date.now()+Math.floor(playclock * 0.9)*1000;
+
+
+        while (Date.now() < deadline && !tree.complete) {
+            process(tree, deadline);
+        }
+        
+        // console.log("Post processing tree:", tree);
+        move = selectaction(tree);
+
+        // console.log("Nodes: " + nodes);
+        // console.log("Terminals: " + terminals);
+        // console.log("Deptchcharges: ", depthcharges);
+        // console.log("Utility: " + tree.utility);
+        // console.log("");
+        // console.log("Move: ", move);
+        return move;
+    }
+
+    function subtree(move, node) {
+        // console.log("Node: ", node);
+        if (node.children.length === 0) {
+            var newstate = simulate(move,node.state,library);
+            var newmover = findcontrol(newstate,library);
+            var newscore = parseInt(findreward(role,newstate,library));
+            var newcomplete = findterminalp(newstate,library);
+            return makenode(newstate,newmover,newscore,newcomplete);
+        }
+
+        for (var i = 0; i < node.actions.length; i++) {
+            if (equalp(move, node.actions[i])) {
+                return node.children[i];
+            }
+        }
+
+        return node;
+    }
+
+    function process(node, deadline) {
+        if (node.children.length === 0) {
+            expand(node);
+        }
+        else {
+            process(selectnodeUCB(node), deadline);
+        }
+        explore(node, deadline);
+        updatenode(node);
+        return true;
+    }
+
+    
+    function selectnodeUCB(node) {
+        if (node.children.length === 0) {
+            console.error("No children to select from.");
+            return null;  // Handle no children case.
+        }
+
+        var bestChild = null;
+        var bestUCB = -Infinity;
+        const C = 1.41;  // UCB exploration constant, tune as needed.
+
+        for (let i = 0; i < node.children.length; i++) {
+            var child = node.children[i];
+            if (child.visits === 0) {
+                return child; // If a child has not been visited, prioritize exploring it.
+            }
+
+            var exploitation = child.utility / child.visits; // Average utility of the node.
+            var exploration = Math.sqrt(Math.log(node.visits) / child.visits); // UCB exploration term.
+            var ucb = exploitation + C * exploration; // UCB calculation.
+
+            if (ucb > bestUCB) {
+                console.log("curr UCB", ucb, "bestUCB", bestUCB);
+                bestUCB = ucb;
+                bestChild = child;
+            }
+        }
+        return bestChild; // Return the child with the highest UCB value.
+    }
+
+    
+
+    function selectnode(node) {
+        var child = node.children[0];
+        var score = -1;
+        for (var i = 0; i<node.children.length; i++) {
+            var newchild = node.children[i];
+            if (newchild.complete) {
+                continue;
+            }
+            var newscore = scorenode(newchild, node);
+            if (newscore > score) {
+                child = newchild;
+                score = newscore;
+            }
+        }
+        return child;
+    }
+
+    function scorenode(node,parent) {
+        var exploitation = node.utility;
+        var exploration = Math.round((1 - node.visits/parent.visits)*100);
+        if (parent.mover===role) {
+            score = exploration + exploitation;
+        }
+        else {
+            score = exploration;
+        }
+        return score;
+    }
+
+    function expand(node) {
+        node.actions = shuffle(findlegals(node.state,library));
+        for (var i=0; i<node.actions.length; i++) {
+            var newstate = simulate(node.actions[i],node.state,library);
+            var newmover = findcontrol(newstate,library);
+            var newscore = parseInt(findreward(role,newstate,library));
+            var newcomplete = findterminalp(newstate,library);
+            var opprole = roles.filter(element => element !== role)[0];
+            var newscore = evalfunc(newstate, opprole);
+            if (findterminalp(newstate,library) && (0 < newscore < 100)) {
+                // console.log("expand with eval", node.actions[i], newscore, findterminalp(newstate,library));
+            }
+            node.children[i] = makenode(newstate,newmover,newscore,newcomplete);
+            if (newcomplete) {
+                terminals++;
+            }
+            nodes++;
+        }
+        return true;
+    }
+
+    function updatenode(node) {
+        if (node.mover===role) {
+            node.utility = scoremax(node);
+            node.complete = checkmax(node);
+        }
+        else {
+            node.utility = scoremin(node);
+            node.complete = checkmin(node);
+        }
+        node.visits++;
+        return true;
+    }
+
+    function scoremax(node) {
+        var score = node.children[0].utility;
+        for (var i=0; i<node.children.length; i++) {
+            var newscore = node.children[i].utility;
+            if (newscore>score) {
+                score = newscore;
+            }
+        }
+        return score;
+    }
+
+    function scoremin(node) {
+        var score = node.children[0].utility;
+        for (var i=0; i<node.children.length; i++) {
+            var newscore = node.children[i].utility;
+            if (newscore<score) {
+                score = newscore;
+            }
+        }
+        return score;
+    }
+
+    function checkmax(node) {
+        var flag = true;
+        for (var i=0; i<node.children.length; i++) {
+            if (!node.children[i].complete) {
+                flag = false; 
+                continue;
+            }
+            if (node.children[i].utility===100) {
+                return true;
+            }
+        }
+        return flag;
+    }
+
+    function checkmin(node) {
+        var flag = true;
+        for (var i=0; i<node.children.length; i++) {
+            if (!node.children[i].complete) {
+                flag = false; 
+                continue;
+            }
+            if (node.children[i].utility===0) {
+                return true;
+            }
+        }
+        return flag;
+    }
+
+    function checkcomplete(node) {
+        for (var i = 0; i < node.children.length; i++) {
+            if (!node.children[i].complete) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function selectaction(node) {
+        var action = node.actions[0];
+        var score = -1;
+        for (var i = 0; i < node.children.length; i++) {
+            var child = node.children[i];
+            // console.log(child.state, child.utility, child.complete);
+            if (child.complete && child.utility===100) {
+                return node.actions[i];
+            }
+            if (child.complete && child.utility===0) {
+                continue;
+            }
+            if (child.utility > score) {
+                action = node.actions[i];
+                score = child.utility; 
+            }
+        }
+        return action;
+    }
+
+    //==============================================================================
+    // exploooooooore
+    //==============================================================================
+
+    function explore(node, deadline) {
+        if (node.children.length===0) {
+            return sample(node);
+        }
+        else {
+            for (var i = 0; i < node.children.length; i++) {
+                if (Date.now() > deadline) {
+                    break;
+                }
+                sample(node.children[i]);
+            }
+        }
+        return true;
+    }
+
+    function sample(node) {
+        var utility = node.utility;
+        var probes = node.probes;
+        var score = depthcharge(node.state);
+        node.utility = Math.round((utility*probes+score)/(probes+1));
+        node.probes = node.probes + 1;
+        depthcharges++;
+        return true;
+    }
+
+    function shuffle(array) {
+        for (var i = array.length-1; i>0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var temp = array[i];
+            array[i] = array[j];
+            array[j] = temp;
+        }
+        return array;
+    }
+
+    function mobility(state) {
+        var actions = findlegals(state,library);
+        var feasibles = findactions(library);
+        return (actions.length/feasibles.length * 100);
+    }
+
+    function focus(state) {
+        var actions = findlegals(state,library);
+        var feasibles = findactions(library);
+        return (100 - actions.length/feasibles.length * 100);
+    }
+
+    // Mobility eval function
+    function mobilityEval(state) {
+        var active = findcontrol(state,library);
+        if (active===role) {
+            return mobility(state);
+        }
+        return focus(state);
+    }
+
+    // Pessimistic evaluation function
+    function pessimisticEval(state) {  
+        if (findterminalp(state,library)) {
+            return findreward(role,state,library)*1;
+        }
+        return 0;
+    }
+
+    // Intermediate evaluation function
+    function intermediateEval(state) {
+        return findreward(role,state,library)*1;
+    }
+
+    // Combined evaluation function that is a weighted combination of other eval functions
+    // TODO - can maybe add memoization for eval functions
+    // TODO - consider opponent reward in eval func (impacts non zero-sum games e.g. connectfour)
+    /* 
+    function evalfunc(state) {
+        var pessWeight = 0;
+        var intermediateWeight = 1;
+        var mobilityWeight = 0;
+        var evaluation = (pessWeight * pessimisticEval(state)) + (intermediateWeight * intermediateEval(state)) + (mobilityWeight * mobilityEval(state));
+        return evaluation;
+    }
+    */
+
+    /* Performs montecarlo search from a given state where count is the total number of depth charges.
+       Returns expected value from a given state assuming random moves.
+    */
+    function montecarlo(state, count) {
+        var total = 0;
+        mcsDepth = 0;
+        for (var i = 0; i < count; i++) {
+            total += depthcharge(state);
+        }
+        return total/count;
+    }
+
+    // Returns random index between 0 and n (exclusive)
+    function randomindex(n) {
+        return Math.floor(Math.random()*n);
+    }
+
+    /* Given a state, this function performs random actions until a terminal state is reached,
+       and returns the rewards found at the terminal state */
+    function depthcharge(state) {
+        if (findterminalp(state, library)) {
+            return findreward(role,state,library)*1;
+            var opprole = roles.filter(element => element !== role)[0];
+            return evalfunc(state, opprole);
+        }
+        var actions = findlegals(state,library);
+        var best = randomindex(actions.length);
+        var newstate = simulate(actions[best],state,library);
+        return depthcharge(newstate);
+    } 
+
+
+    //==============================================================================
+    // End of player code
+    //==============================================================================
+  </script>
+</head>
+<!--
+    Our agent combines greedy evaluation and Monte Carlo Tree Search (MCTS) to optimize its gameplay decisions.
+    Initially, it employs a `maxmineval` function to assess game states by calculating the reward differences between 
+    the player and the opponent, normalizing these to ensure consistent decision-making across different scenarios. This
+    function is designed to maximize the player's advantage, adhering to zero-sum game principles. The agent
+    organizes its strategy around a dynamic tree structure that maps out potential moves from the current game state, 
+    adjusting this structure as the game evolves.
+
+    Incorporating elements of MCTS, particularly through the Upper Confidence Bound (UCB) method, our agent adeptly balances 
+    exploiting known advantageous moves against exploring new possibilities. The `explore` function enables our agent to simulate
+    potential future states efficiently, enhancing decision-making without the need to play through these scenarios fully.
+
+    Addionally, during the startclock our player gets a headstart on searching the game stree while also incorporating strategies such as 
+    rule pruning and simplification to optimize game search and gameplay.
+
+    Operating under a few different time constraints, our agent smartly allocates time to both greedy evaluation and MCTS based 
+    on set deadlines, ensuring that decisions are both timely and strategically sound.
+
+    -->
+
+<!--=======================================================================-->
+
+<body bgcolor='#000000' onload='doinitialize()'>
+    <center>
+      <table width='720' cellspacing='0' cellpadding='40' bgcolor='#ffffff'>
+        <tr>
+          <td>
+  
+  <!--=======================================================================-->
+  
+  <center>
+    <table width='640' cellpadding='0'>
+      <tr>
+        <td width='180' align='center' valign='center'>
+          <img width='130' src='http://gamemaster.stanford.edu/images/ggp.jpg'/>
+        </td>
+        <td align='center'>
+          <span style='font-size:18pt'>&nbsp;</span>
+          <span style='font-size:28pt'>Ur Moms A Bit</span><br/>
+          <span style='font-size:22pt'>&#x1F449; &#x1F469; &#x1F170; &#x1F479;</span>
+        </td>
+        <td width='180' align='center' style='color:#000066;font-size:18px'>
+          <i>General<br/>Game<br/>Playing</i>
+        </td>
+      </tr>
+    </table>
+  </center>
+
+<!--=======================================================================-->
+
+<br/>
+<table width='640' cellpadding='8' cellspacing='0' bgcolor='#f4f8f8' border='1'>
+  <tr height='40'>
+     <td align='center'>
+<table style='color:#000066;font-size:18px'>
+  <tr>
+    <td>
+Protocol: localstorage<br/>
+Metagamer: none<br/>
+Strategy: greedymcts<br/>
+Identifier: <span id='player'>ur_moms_a_bit</span> <img src="http://gamemaster.stanford.edu/images/pencil.gif" onclick='doplayer()'/>
+    </td>
+  </tr>
+</table>
+    </td>
+  </tr>
+</table>
+<br/>
+
+<!--=======================================================================-->
+
+<center>
+  <br/>
+  <textarea id='transcript' style='font-family:courier' rows='30' cols='80' readonly></textarea>
+</center>
+
+<!--=======================================================================-->
+
+        </td>
+      </tr>
+    </table>
+  </center>
+</body>
+
+<!--=======================================================================-->
+
+</html>
