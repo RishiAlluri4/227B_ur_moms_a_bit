@@ -70,29 +70,7 @@
         role = r;
         startclock = numberize(sc);
         playclock = numberize(pc);
-        /*
-        // Declare and optimize rules
-        rules = rs.slice(1);
-        console.log("initial rules", rules);
-        rules = prunerulesubgoals(rules); // reorder, prune rules and subgoals
-        console.log("subgoal pruned", rules);
-        rules = prunerules(rules);
-        console.log("pruned again", rules);
-        rules = fixrules(rules);
-        console.log("fixed rules", rules);
-        rules = simplifyrules(rules); // eliminate true subgoals and eliminate rules with false subgoals
-        // TODO: figure out if we should materializestaticrelations below
-        //rules = materializestaticrelations(rules);  // precomputes and saves results - has tradeoffs
 
-        //rules = groundrules(rules);
-        console.log("Grounded rules: ", rules);
-        //rules = symbolizerules(rules);
-        //console.log("Symbolized rules: ", rules);
-        if (rules === false) {
-            console.log("Failed to ground or symbolize rules");
-            return 'not_ready';
-        }
-        */// Get the rules
         rules = rs.slice(1);
         
         // Deadline
@@ -269,10 +247,6 @@
 
     
     function selectnodeUCB(node) {
-        if (node.children.length === 0) {
-            console.error("No children to select from.");
-            return null;  // Handle no children case.
-        }
 
         var bestChild = null;
         var bestUCB = -Infinity;
