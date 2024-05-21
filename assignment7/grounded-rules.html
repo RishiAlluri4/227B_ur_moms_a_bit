@@ -702,8 +702,9 @@
     exploiting known advantageous moves against exploring new possibilities. The `explore` function enables our agent to simulate
     potential future states efficiently, enhancing decision-making without the need to play through these scenarios fully.
 
-    Addionally, during the startclock our player gets a headstart on searching the game stree while also incorporating strategies such as 
-    rule pruning and simplification to optimize game search and gameplay.
+    Addionally, during the startclock our player gets a headstart on searching the game stree while also incorporating metagaming strategies such as 
+    rule pruning and simplification to optimize game search and gameplay. More metagaming strategies include grounding (replacing all variables by ground terms) and symbolizing, which in combination,
+    allow us to increase our depth charging by a factor of roughly 10!
 
     Operating under a few different time constraints, our agent smartly allocates time to both greedy evaluation and MCTS based 
     on set deadlines, ensuring that decisions are both timely and strategically sound.
