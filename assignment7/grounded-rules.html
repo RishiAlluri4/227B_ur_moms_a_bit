@@ -39,6 +39,7 @@
     var MCS_COUNT = 10;  // 
     var MINIMAX_WEIGHT = 0.98;
     var MCS_WEIGHT = 1 - MINIMAX_WEIGHT;
+    var MC_DEPTH = 1000;
 
     // Greedy variables
     var tree = {};
@@ -439,7 +440,7 @@
     function sample(node) {
         var utility = node.utility;
         var probes = node.probes;
-        var score = depthcharge(node.state);
+        var score = depthcharge(node.state, MC_DEPTH);
         node.utility = Math.round((utility*probes+score)/(probes+1));
         node.probes = node.probes + 1;
         depthcharges++;
@@ -510,7 +511,7 @@
         var total = 0;
         mcsDepth = 0;
         for (var i = 0; i < count; i++) {
-            total += depthcharge(state);
+            total += depthcharge(state, MC_DEPTH);
         }
         return total/count;
     }
@@ -522,16 +523,17 @@
 
     /* Given a state, this function performs random actions until a terminal state is reached,
        and returns the rewards found at the terminal state */
-    function depthcharge(state) {
-        if (findterminalp(state, library)) {
-            return findreward(role,state,library)*1;
-            var opprole = roles.filter(element => element !== role)[0];
-            return evalfunc(state, opprole);
+    function depthcharge(state, depth) {
+        var sstate = state;
+        while (!findterminalp(sstate, library) && depth > 0) {
+            let actions = findlegals(sstate, library);
+            if (actions.length === 0) { 
+                return 0; 
+            }
+            sstate = simulate(actions[Math.floor(Math.random() * actions.length)], sstate, library);
+            depth -= 1;
         }
-        var actions = findlegals(state,library);
-        var best = randomindex(actions.length);
-        var newstate = simulate(actions[best],state,library);
-        return depthcharge(newstate);
+        return findreward(role, sstate, library);
     } 
 
     //==============================================================================
