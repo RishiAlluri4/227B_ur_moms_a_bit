@@ -94,6 +94,9 @@
         }
         */// Get the rules
         rules = rs.slice(1);
+        
+        // Deadline
+        var headStartDeadline = Date.now() + startclock * 1000;  // head start search
 
         // Optimizer
         rules = prunerulesubgoals(rules);
@@ -127,7 +130,6 @@
 
         // Create tree and begin processing 
         tree = makenode(state,active,reward,false);
-        var headStartDeadline = Date.now() + startclock * 1000;  // head start search
         while (Date.now() < headStartDeadline && !tree.complete) {
             process(tree, headStartDeadline);
         }
@@ -278,6 +280,9 @@
 
         for (let i = 0; i < node.children.length; i++) {
             var child = node.children[i];
+            if (child.complete) {
+                continue;
+            }
             if (child.visits === 0) {
                 return child; // If a child has not been visited, prioritize exploring it.
             }
