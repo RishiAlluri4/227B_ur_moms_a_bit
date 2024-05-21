@@ -70,7 +70,7 @@
         role = r;
         startclock = numberize(sc);
         playclock = numberize(pc);
-
+        /*
         // Declare and optimize rules
         rules = rs.slice(1);
         console.log("initial rules", rules);
@@ -84,13 +84,38 @@
         // TODO: figure out if we should materializestaticrelations below
         //rules = materializestaticrelations(rules);  // precomputes and saves results - has tradeoffs
 
-        rules = groundrules(rules);
+        //rules = groundrules(rules);
         console.log("Grounded rules: ", rules);
-        rules = symbolizerules(rules);
-        console.log("Symbolized rules: ", rules);
+        //rules = symbolizerules(rules);
+        //console.log("Symbolized rules: ", rules);
         if (rules === false) {
             console.log("Failed to ground or symbolize rules");
             return 'not_ready';
+        }
+        */// Get the rules
+        rules = rs.slice(1);
+
+        // Optimizer
+        rules = prunerulesubgoals(rules);
+        rules = prunerules(rules);
+        rules = fixrules(rules);
+
+        rules = definemorerules([], rules);
+        // Grounder
+        var groundedRules = groundrules(rules, startclock * 1000 / 2);
+
+        if (groundedRules) {
+            console.log("Grounded rules: ", rules);
+            rules = symbolizerules(groundedRules);
+            console.log("Symbolized rules: ", rules);
+            symbolized = true;
+
+            // Simplifier
+            rules = simplifyrules(rules);
+
+            rules = definemorerules([], rules);
+        } else {
+            symbolized = false;
         }
 
         // Declare library once rules have been finalized
@@ -178,6 +203,9 @@
 
     function playgreedy(move) {        
         if (move !== nil) {
+            if (symbolized) { 
+                move = symbolizeatom(move); 
+            }
             tree = subtree(move, tree);
             state = tree.state;
         }
@@ -198,15 +226,12 @@
         }
         
         // console.log("Post processing tree:", tree);
-        move = selectaction(tree);
-
-        // console.log("Nodes: " + nodes);
-        // console.log("Terminals: " + terminals);
-        // console.log("Deptchcharges: ", depthcharges);
-        // console.log("Utility: " + tree.utility);
-        // console.log("");
-        // console.log("Move: ", move);
-        return move;
+        nextMove = selectaction(tree);
+        if (symbolized) {
+            nextMove = unsymbolizeatom(nextMove);
+        }
+        
+        return nextMove;
     }
 
     function subtree(move, node) {
@@ -262,7 +287,6 @@
             var ucb = exploitation + C * exploration; // UCB calculation.
 
             if (ucb > bestUCB) {
-                console.log("curr UCB", ucb, "bestUCB", bestUCB);
                 bestUCB = ucb;
                 bestChild = child;
             }
