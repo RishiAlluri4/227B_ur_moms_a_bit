@@ -35,11 +35,6 @@
     // memoization
     var memo = {};
 
-    // CONSTANTS
-    var MCS_COUNT = 10;  // 
-    var MINIMAX_WEIGHT = 0.98;
-    var MCS_WEIGHT = 1 - MINIMAX_WEIGHT;
-
     // Greedy variables
     var tree = {};
     var nodes = 0;
@@ -175,7 +170,7 @@
             mover: mover,
             utility: utility,
             visits: 0,
-            probes:6,  // giving a bit more emphasis to intermediate utility
+            probes:3,  // giving a bit more emphasis to intermediate utility
             complete: complete
         };
         return newnode;
