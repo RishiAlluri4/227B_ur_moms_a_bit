@@ -49,18 +49,6 @@
         return 'ready'
     }
 
-    function groundrulesNEW (rules,limit)
-        {if (limit===undefined) {limit = 5000};
-        var facts = groundfacts(rules,limit);
-        if (facts===false) {return false};
-        var actions = compactions(rules);
-        var exprs = facts.concat(actions);
-        var newrules = [];
-        for (var i=0; i<rules.length; i++)
-            {try {newrules = groundrule(rules[i],exprs,newrules)}
-            catch (err) {return false}};
-        return zniquify(newrules)}
-
     function start(r,rs,sc,pc) {
         // TODO - leverage rules before game starts to optimize bot
         role = r;
@@ -519,11 +507,11 @@
     /* Given a state, this function performs random actions until a terminal state is reached,
        and returns the rewards found at the terminal state */
     function depthcharge(state, depth) {
-        if (findterminalp(state, library)) {
-        return findreward(role, state, library) * 1;
-    }
-    if (depth <= 0) {
         var opprole = roles.filter(element => element !== role)[0];
+        if (findterminalp(state, library)) {
+            return evalfunc(state, opprole);
+        }
+    if (depth <= 0) { 
         return evalfunc(state, opprole);
     }
     var actions = findlegals(state, library);
@@ -531,162 +519,6 @@
     var newstate = simulate(actions[best], state, library);
     return depthcharge(newstate, depth - 1);
     } 
-
-    //==============================================================================
-    // grounder code - essentially wrappers around the included grounder.js script
-    //==============================================================================
-
-    var library;
-    dataindexing = false
-    ruleindexing = true
-
-    //------------------------------------------------------------------------------
-    // docountbases
-    // dogroundbases
-    //------------------------------------------------------------------------------
-
-    function docountbases ()
-    {var input = document.getElementById('input');
-    var output = document.getElementById('output');
-    var timer = document.getElementById('timearea')
-    var library = definemorerules([],readdata(input.value));
-    var beg = performance.now();
-
-    var facts = compbases(library);
-
-    var end = performance.now();
-    var total = Math.floor(end-beg);
-    timer.innerHTML = total + ' milliseconds';
-    output.value = facts.length;
-    return true}
-
-    function dogroundbases ()
-    {var input = document.getElementById('input');
-    var output = document.getElementById('output');
-    var timer = document.getElementById('timearea')
-    var library = definemorerules([],readdata(input.value));
-    var beg = performance.now();
-
-    var facts = compbases(library);
-
-    var end = performance.now();
-    var total = Math.floor(end-beg);
-    timer.innerHTML = total + ' milliseconds';
-    output.value = displayrules(facts);
-    return true}
-
-    //------------------------------------------------------------------------------
-    // docountactions
-    // dogroundactions
-    //------------------------------------------------------------------------------
-
-    function docountactions ()
-    {var input = document.getElementById('input');
-    var output = document.getElementById('output');
-    var timer = document.getElementById('timearea');
-    var library = definemorerules([],readdata(input.value));
-    var beg = performance.now();
-
-    var facts = compactions(library);
-
-    var end = performance.now();
-    var total = Math.floor(end-beg);
-    timer.innerHTML = total + ' milliseconds';
-    output.value = facts.length;
-    return true}
-
-    function dogroundactions ()
-    {var input = document.getElementById('input');
-    var output = document.getElementById('output');
-    var timer = document.getElementById('timearea');
-    var library = definemorerules([],readdata(input.value));
-    var beg = performance.now();
-
-    var facts = compactions(library);
-
-    var end = performance.now();
-    var total = Math.floor(end-beg);
-    timer.innerHTML = total + ' milliseconds';
-    output.value = displayrules(facts);
-    return true}
-
-    //------------------------------------------------------------------------------
-    // docountfacts
-    // dogroundfacts
-    //------------------------------------------------------------------------------
-
-    function docountfacts ()
-    {var input = document.getElementById('input');
-    var output = document.getElementById('output');
-    var timer = document.getElementById('timearea');
-    var rules = definemorerules([],readdata(input.value));
-    var beg = performance.now();
-
-    var facts = groundfacts(rules,60000);
-
-    var end = performance.now();
-    var total = Math.floor(end-beg);
-    timer.innerHTML = total + ' milliseconds';
-    output.value = facts ? facts.length : "Failure";
-    return true}
-
-    function dogroundfacts ()
-    {var input = document.getElementById('input');
-    var output = document.getElementById('output');
-    var timer = document.getElementById('timearea');
-    var rules = readdata(input.value);
-    var beg = performance.now();
-
-    rules = definemorerules([],rules);
-    var facts = groundfacts(rules,60000);
-
-    var end = performance.now();
-    var total = Math.floor(end-beg);
-    timer.innerHTML = total + ' milliseconds';
-    output.value = facts ? grindem(facts.sort()) : "Failure";
-    return true}
-
-    //------------------------------------------------------------------------------
-    // docountrules
-    // dogroundrules
-    //------------------------------------------------------------------------------
-
-    function docountrules ()
-    {var input = document.getElementById('input');
-    var output = document.getElementById('output');
-    var timer = document.getElementById('timearea')
-    var rules = readdata(input.value);
-    var beg = performance.now();
-
-    rules = definemorerules([],rules);
-    rules = groundrules(rules,60000);
-
-    var end = performance.now();
-    var total = Math.floor(end-beg);
-    timer.innerHTML = total + ' milliseconds';
-    output.value = rules ? rules.length : "Failure";
-    return true}
-
-
-    function dogroundrules ()
-    {var input = document.getElementById('input');
-    var output = document.getElementById('output');
-    var timer = document.getElementById('timearea')
-    var rules = readdata(input.value);
-    var beg = performance.now();
-
-    rules = definemorerules([],rules);
-    rules = groundrules(rules,60000);
-
-    var end = performance.now();
-    var total = Math.floor(end-beg);
-    timer.innerHTML = total + ' milliseconds';
-    output.value = rules ? grindem(rules) : "Failure";
-    return true}
-
-//==============================================================================
-// End
-//==============================================================================
 
     //==============================================================================
     // End of player code
