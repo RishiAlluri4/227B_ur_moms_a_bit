@@ -519,16 +519,17 @@
     /* Given a state, this function performs random actions until a terminal state is reached,
        and returns the rewards found at the terminal state */
     function depthcharge(state, depth) {
-        var sstate = state;
-        while (!findterminalp(sstate, library) && depth > 0) {
-            let actions = findlegals(sstate, library);
-            if (actions.length === 0) { 
-                return 0; 
-            }
-            sstate = simulate(actions[Math.floor(Math.random() * actions.length)], sstate, library);
-            depth -= 1;
-        }
-        return findreward(role, sstate, library);
+        if (findterminalp(state, library)) {
+        return findreward(role, state, library) * 1;
+    }
+    if (depth <= 0) {
+        var opprole = roles.filter(element => element !== role)[0];
+        return evalfunc(state, opprole);
+    }
+    var actions = findlegals(state, library);
+    var best = randomindex(actions.length);
+    var newstate = simulate(actions[best], state, library);
+    return depthcharge(newstate, depth - 1);
     } 
 
     //==============================================================================
