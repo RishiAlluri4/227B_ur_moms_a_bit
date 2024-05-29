@@ -12,6 +12,7 @@
   <script src='http://gamemaster.stanford.edu/metagaming/grounder.js'></script>
   <script src='http://gamemaster.stanford.edu/metagaming/symbolizer.js'></script>
   <script type='text/javascript' src='../interpreter/general.js'></script>
+  <script src='../metagaming/pruner.js'></script>
   <script type='text/javascript'>
     //==============================================================================
     // Customization
@@ -80,11 +81,15 @@
             rules = simplifyrules(rules);
 
             rules = definemorerules([], rules);
+            rules = pruneprogram(role,rules);
+            console.log("rules pruned");
+
         } else {
             symbolized = false;
         }
 
         // Declare library once rules have been finalized
+        
         library = definemorerules([],rules);
         roles = findroles(library);
         state = findinits(library);
@@ -537,8 +542,8 @@
     |--------------------------|---------|--------------|--------------|--------------|--------------|
     |                          | Results | Normal Terms | Normal Nodes | Simple Terms | Simple Nodes |
     |--------------------------|---------|--------------|--------------|--------------|--------------|
-    | multiplebuttonsandlights | 100     | 0            | 1620         | 0            | 1674         |
-    | lightboard               | 100     | 882          | 8580         | 879          | 8633         |
+    | multiplebuttonsandlights | 100     | 0            | 1620         | 729          | 1092         |
+    | lightboard               | 100     | 882          | 8580         | 120          | 326          |
     |--------------------------|---------|--------------|--------------|--------------|--------------|
 
     Our agent combines greedy evaluation and Monte Carlo Tree Search (MCTS) to optimize its gameplay decisions.
