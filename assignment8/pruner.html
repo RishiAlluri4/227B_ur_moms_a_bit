@@ -41,6 +41,7 @@
     var nodes = 0;
     var terminals = 0;
     var depthcharges = 0;
+    var symbolized;
 
 
     //==============================================================================
@@ -95,6 +96,10 @@
         while (Date.now() < headStartDeadline && !tree.complete) {
             process(tree, headStartDeadline);
         }
+
+        console.log("Nodes: ", nodes);
+        console.log("Terminals: ", terminals);
+
         return 'ready';
     }
 
@@ -305,6 +310,7 @@
                 terminals++;
             }
             nodes++;
+            //console.log("Node added", nodes);
         }
         return true;
     }
@@ -526,6 +532,15 @@
   </script>
 </head>
 <!--
+
+    Performance Table (Normal is w/o pruning, Simple is w/ pruning)
+    |--------------------------|---------|--------------|--------------|--------------|--------------|
+    |                          | Results | Normal Terms | Normal Nodes | Simple Terms | Simple Nodes |
+    |--------------------------|---------|--------------|--------------|--------------|--------------|
+    | multiplebuttonsandlights | 100     | 0            | 1620         | 0            | 1674         |
+    | lightboard               | 100     | 882          | 8580         | 879          | 8633         |
+    |--------------------------|---------|--------------|--------------|--------------|--------------|
+
     Our agent combines greedy evaluation and Monte Carlo Tree Search (MCTS) to optimize its gameplay decisions.
     Initially, it employs a `maxmineval` function to assess game states by calculating the reward differences between 
     the player and the opponent, normalizing these to ensure consistent decision-making across different scenarios. This
